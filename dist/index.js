@@ -71,19 +71,47 @@ function scavioWalmartSearch(config) {
     execute: async ({ query }) => trim(await c.walmart.search({ query }), max)
   });
 }
+function scavioTiktokSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search TikTok for videos by keyword via the Scavio API.",
+    inputSchema: z.object({
+      keyword: z.string().describe("The search keyword."),
+      sort_type: z.string().optional().describe("Sort order for results."),
+      publish_time: z.string().optional().describe("Filter by publish time window.")
+    }),
+    execute: async ({ keyword, sort_type, publish_time }) => trim(await c.tiktok.searchVideos({ keyword, sort_type, publish_time }), max)
+  });
+}
+function scavioInstagramSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search Instagram for users by keyword via the Scavio API.",
+    inputSchema: z.object({
+      keyword: z.string().describe("The search keyword.")
+    }),
+    execute: async ({ keyword }) => trim(await c.instagram.searchUsers({ keyword }), max)
+  });
+}
 function scavioTools(config) {
   return {
     scavio_search: scavioSearch(config),
     scavio_youtube_search: scavioYoutubeSearch(config),
     scavio_reddit_search: scavioRedditSearch(config),
     scavio_amazon_search: scavioAmazonSearch(config),
-    scavio_walmart_search: scavioWalmartSearch(config)
+    scavio_walmart_search: scavioWalmartSearch(config),
+    scavio_tiktok_search: scavioTiktokSearch(config),
+    scavio_instagram_search: scavioInstagramSearch(config)
   };
 }
 export {
   scavioAmazonSearch,
+  scavioInstagramSearch,
   scavioRedditSearch,
   scavioSearch,
+  scavioTiktokSearch,
   scavioTools,
   scavioWalmartSearch,
   scavioYoutubeSearch

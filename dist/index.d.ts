@@ -29,6 +29,16 @@ declare function scavioAmazonSearch(config?: ScavioToolConfig): ai.Tool<{
 declare function scavioWalmartSearch(config?: ScavioToolConfig): ai.Tool<{
     query: string;
 }, Record<string, unknown>>;
+/** TikTok video search. */
+declare function scavioTiktokSearch(config?: ScavioToolConfig): ai.Tool<{
+    keyword: string;
+    sort_type?: string | undefined;
+    publish_time?: string | undefined;
+}, Record<string, unknown>>;
+/** Instagram user search. */
+declare function scavioInstagramSearch(config?: ScavioToolConfig): ai.Tool<{
+    keyword: string;
+}, Record<string, unknown>>;
 /**
  * All Scavio tools as an object keyed by tool name, ready to spread into the
  * `tools` option of `generateText` / `streamText`.
@@ -53,6 +63,14 @@ declare function scavioTools(config?: ScavioToolConfig): {
     scavio_walmart_search: ai.Tool<{
         query: string;
     }, Record<string, unknown>>;
+    scavio_tiktok_search: ai.Tool<{
+        keyword: string;
+        sort_type?: string | undefined;
+        publish_time?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_instagram_search: ai.Tool<{
+        keyword: string;
+    }, Record<string, unknown>>;
 };
 
-export { type ScavioToolConfig, scavioAmazonSearch, scavioRedditSearch, scavioSearch, scavioTools, scavioWalmartSearch, scavioYoutubeSearch };
+export { type ScavioToolConfig, scavioAmazonSearch, scavioInstagramSearch, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeSearch };

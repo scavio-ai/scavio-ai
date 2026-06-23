@@ -1,12 +1,13 @@
-# scavio-ai
+# @scavio/ai-sdk
 
 Scavio search tools for the [Vercel AI SDK](https://sdk.vercel.ai). Give any AI SDK agent real-time
-search across Google, YouTube, Reddit, Amazon, and Walmart via the [Scavio](https://scavio.dev) API.
+search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram via the
+[Scavio](https://scavio.dev) API.
 
 ## Install
 
 ```bash
-npm install scavio-ai ai
+npm install @scavio/ai-sdk ai
 export SCAVIO_API_KEY=sk_live_your_key
 ```
 
@@ -17,7 +18,7 @@ export SCAVIO_API_KEY=sk_live_your_key
 ```ts
 import { generateText, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
-import { scavioSearch, scavioTools } from "scavio-ai";
+import { scavioSearch, scavioTools } from "@scavio/ai-sdk";
 
 // A single tool:
 const res = await generateText({
@@ -45,6 +46,8 @@ const res2 = await generateText({
 | `scavioRedditSearch` | `scavio_reddit_search` | Reddit (2 credits) |
 | `scavioAmazonSearch` | `scavio_amazon_search` | Amazon products |
 | `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products |
+| `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos |
+| `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users |
 | `scavioTools` | all of the above | bundle for `tools:` |
 
 Each factory accepts `{ apiKey?, maxResults?, ...ScavioConfig }`. The key falls back to `SCAVIO_API_KEY`.

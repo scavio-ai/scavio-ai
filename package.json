@@ -1,7 +1,7 @@
 {
-  "name": "scavio-ai",
-  "version": "0.1.0",
-  "description": "Scavio search tools for the Vercel AI SDK (Google, YouTube, Reddit, Amazon, Walmart).",
+  "name": "@scavio/ai-sdk",
+  "version": "0.2.0",
+  "description": "Scavio search tools for the Vercel AI SDK (Google, YouTube, Reddit, Amazon, Walmart, TikTok, Instagram).",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,6 +35,9 @@
     "agents"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/scavio-ai/scavio-ai.git"

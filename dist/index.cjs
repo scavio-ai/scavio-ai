@@ -21,8 +21,10 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var index_exports = {};
 __export(index_exports, {
   scavioAmazonSearch: () => scavioAmazonSearch,
+  scavioInstagramSearch: () => scavioInstagramSearch,
   scavioRedditSearch: () => scavioRedditSearch,
   scavioSearch: () => scavioSearch,
+  scavioTiktokSearch: () => scavioTiktokSearch,
   scavioTools: () => scavioTools,
   scavioWalmartSearch: () => scavioWalmartSearch,
   scavioYoutubeSearch: () => scavioYoutubeSearch
@@ -100,20 +102,48 @@ function scavioWalmartSearch(config) {
     execute: async ({ query }) => trim(await c.walmart.search({ query }), max)
   });
 }
+function scavioTiktokSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return (0, import_ai.tool)({
+    description: "Search TikTok for videos by keyword via the Scavio API.",
+    inputSchema: import_zod.z.object({
+      keyword: import_zod.z.string().describe("The search keyword."),
+      sort_type: import_zod.z.string().optional().describe("Sort order for results."),
+      publish_time: import_zod.z.string().optional().describe("Filter by publish time window.")
+    }),
+    execute: async ({ keyword, sort_type, publish_time }) => trim(await c.tiktok.searchVideos({ keyword, sort_type, publish_time }), max)
+  });
+}
+function scavioInstagramSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return (0, import_ai.tool)({
+    description: "Search Instagram for users by keyword via the Scavio API.",
+    inputSchema: import_zod.z.object({
+      keyword: import_zod.z.string().describe("The search keyword.")
+    }),
+    execute: async ({ keyword }) => trim(await c.instagram.searchUsers({ keyword }), max)
+  });
+}
 function scavioTools(config) {
   return {
     scavio_search: scavioSearch(config),
     scavio_youtube_search: scavioYoutubeSearch(config),
     scavio_reddit_search: scavioRedditSearch(config),
     scavio_amazon_search: scavioAmazonSearch(config),
-    scavio_walmart_search: scavioWalmartSearch(config)
+    scavio_walmart_search: scavioWalmartSearch(config),
+    scavio_tiktok_search: scavioTiktokSearch(config),
+    scavio_instagram_search: scavioInstagramSearch(config)
   };
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   scavioAmazonSearch,
+  scavioInstagramSearch,
   scavioRedditSearch,
   scavioSearch,
+  scavioTiktokSearch,
   scavioTools,
   scavioWalmartSearch,
   scavioYoutubeSearch
