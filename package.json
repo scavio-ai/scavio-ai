@@ -1,6 +1,6 @@
 {
   "name": "@scavio/ai-sdk",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Scavio search tools for the Vercel AI SDK (Google, YouTube, Reddit, Amazon, Walmart, TikTok, Instagram).",
   "type": "module",
   "main": "./dist/index.cjs",
