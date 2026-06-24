@@ -7,7 +7,7 @@ search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram vi
 ## Install
 
 ```bash
-npm install @scavio/ai-sdk ai
+npm install @scavio/ai-sdk ai zod
 export SCAVIO_API_KEY=sk_live_your_key
 ```
 
