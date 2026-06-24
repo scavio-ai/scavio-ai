@@ -19,7 +19,7 @@ vi.mock("scavio", () => ({
 
 import { scavioSearch, scavioTiktokSearch, scavioTools } from "./index.js";
 
-describe("scavio-ai tools", () => {
+describe("@scavio/ai-sdk tools", () => {
   beforeEach(() => {
     search.mockReset();
     youtubeSearch.mockReset();
