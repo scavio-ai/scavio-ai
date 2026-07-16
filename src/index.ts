@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { Scavio, type ScavioConfig } from "scavio";
+import { Scavio, type ScavioConfig, type GoogleSearchOptions } from "scavio";
 
 export interface ScavioToolConfig extends ScavioConfig {
   /** Max number of results to keep in `results`-style lists. Defaults to 10. */
@@ -19,20 +19,38 @@ function trim(res: Record<string, unknown>, max: number): Record<string, unknown
   return res;
 }
 
-/** Google web search. */
+function trimList(res: Record<string, unknown>, key: string, max: number): Record<string, unknown> {
+  const list = res[key];
+  if (Array.isArray(list) && list.length > max) {
+    return { ...res, [key]: list.slice(0, max) };
+  }
+  return res;
+}
+
+/** Google web search (/api/v2/google, 1 credit). */
 export function scavioSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
     description:
-      "Search the web with Google via the Scavio API. Returns real-time organic search results.",
+      "Search the web with Google via the Scavio API (1 credit). Returns real-time organic search results, each with a title, link, and snippet, under `organic_results`.",
     inputSchema: z.object({
       query: z.string().describe("The search query."),
-      country_code: z.string().optional().describe('Two-letter country code to localize results, e.g. "us".'),
-      language: z.string().optional().describe('Two-letter language code, e.g. "en".'),
+      countryCode: z.string().optional().describe('Two-letter country code to localize results, e.g. "us".'),
+      language: z.string().optional().describe('Two-letter UI language code, e.g. "en".'),
+      page: z.number().int().optional().describe("1-based result page; page 2 starts at result 10."),
+      device: z.enum(["desktop", "mobile"]).optional().describe("Device to emulate."),
+      nfpr: z.boolean().optional().describe("Disable spelling auto-correction / similar-result substitution when true."),
     }),
-    execute: async ({ query, country_code, language }) =>
-      trim(await c.google.search({ query, country_code, language }), max),
+    execute: async ({ query, countryCode, language, page, device, nfpr }) => {
+      const params: GoogleSearchOptions = { query };
+      if (countryCode) params.gl = countryCode;
+      if (language) params.hl = language;
+      if (page && page > 1) params.start = (page - 1) * 10;
+      if (device) params.device = device;
+      if (nfpr !== undefined) params.nfpr = nfpr;
+      return trimList(await c.google.search(params), "organic_results", max);
+    },
   });
 }
 
@@ -59,7 +77,8 @@ export function scavioRedditSearch(config?: ScavioToolConfig) {
       query: z.string().describe("The search query."),
       sort: z.string().optional().describe("Sort order for results."),
     }),
-    execute: async ({ query, sort }) => trim(await c.reddit.search({ query, sort }), max),
+    execute: async ({ query, sort }) =>
+      trim(await c.reddit.search({ query, sort } as Parameters<typeof c.reddit.search>[0]), max),
   });
 }
 
@@ -102,7 +121,14 @@ export function scavioTiktokSearch(config?: ScavioToolConfig) {
       publish_time: z.string().optional().describe("Filter by publish time window."),
     }),
     execute: async ({ keyword, sort_type, publish_time }) =>
-      trim(await c.tiktok.searchVideos({ keyword, sort_type, publish_time }), max),
+      trim(
+        await c.tiktok.searchVideos({
+          keyword,
+          sort_type,
+          publish_time,
+        } as Parameters<typeof c.tiktok.searchVideos>[0]),
+        max,
+      ),
   });
 }
 

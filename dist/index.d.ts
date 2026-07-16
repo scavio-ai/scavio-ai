@@ -5,11 +5,14 @@ interface ScavioToolConfig extends ScavioConfig {
     /** Max number of results to keep in `results`-style lists. Defaults to 10. */
     maxResults?: number;
 }
-/** Google web search. */
+/** Google web search (/api/v2/google, 1 credit). */
 declare function scavioSearch(config?: ScavioToolConfig): ai.Tool<{
     query: string;
-    country_code?: string | undefined;
+    countryCode?: string | undefined;
     language?: string | undefined;
+    page?: number | undefined;
+    device?: "desktop" | "mobile" | undefined;
+    nfpr?: boolean | undefined;
 }, Record<string, unknown>>;
 /** YouTube video search. */
 declare function scavioYoutubeSearch(config?: ScavioToolConfig): ai.Tool<{
@@ -46,8 +49,11 @@ declare function scavioInstagramSearch(config?: ScavioToolConfig): ai.Tool<{
 declare function scavioTools(config?: ScavioToolConfig): {
     scavio_search: ai.Tool<{
         query: string;
-        country_code?: string | undefined;
+        countryCode?: string | undefined;
         language?: string | undefined;
+        page?: number | undefined;
+        device?: "desktop" | "mobile" | undefined;
+        nfpr?: boolean | undefined;
     }, Record<string, unknown>>;
     scavio_youtube_search: ai.Tool<{
         query: string;

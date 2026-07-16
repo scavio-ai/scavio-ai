@@ -25,15 +25,37 @@ describe("@scavio/ai-sdk tools", () => {
     youtubeSearch.mockReset();
   });
 
-  it("scavioSearch executes and trims results to maxResults", async () => {
+  it("scavioSearch maps params to v2 and trims organic_results", async () => {
     search.mockResolvedValue({
-      results: Array.from({ length: 20 }, (_, i) => ({ title: `r${i}`, url: `https://x/${i}` })),
+      organic_results: Array.from({ length: 20 }, (_, i) => ({
+        title: `r${i}`,
+        link: `https://x/${i}`,
+        snippet: `s${i}`,
+      })),
       credits_used: 1,
     });
     const t = scavioSearch({ apiKey: "test", maxResults: 3 });
-    const out = (await t.execute!({ query: "agno" }, {} as never)) as { results: unknown[] };
-    expect(out.results).toHaveLength(3);
-    expect(search).toHaveBeenCalledWith({ query: "agno", country_code: undefined, language: undefined });
+    const out = (await t.execute!(
+      { query: "agno", countryCode: "us", language: "en", page: 2 },
+      {} as never,
+    )) as { organic_results: Array<{ link: string; snippet: string }> };
+    expect(out.organic_results).toHaveLength(3);
+    expect(out.organic_results[0].link).toBe("https://x/0");
+    expect(out.organic_results[0].snippet).toBe("s0");
+    // v2 wire params: gl/hl/start, page 2 -> start 10.
+    expect(search).toHaveBeenCalledWith({ query: "agno", gl: "us", hl: "en", start: 10 });
+    // no dead v1 params leak through.
+    const args = search.mock.calls[0][0];
+    expect(args).not.toHaveProperty("country_code");
+    expect(args).not.toHaveProperty("search_type");
+    expect(args).not.toHaveProperty("light_request");
+  });
+
+  it("scavioSearch omits start on page 1 and sends only provided params", async () => {
+    search.mockResolvedValue({ organic_results: [], credits_used: 1 });
+    const t = scavioSearch({ apiKey: "test" });
+    await t.execute!({ query: "agno" }, {} as never);
+    expect(search).toHaveBeenCalledWith({ query: "agno" });
   });
 
   it("scavioTiktokSearch executes and trims results to maxResults", async () => {

@@ -43,17 +43,35 @@ function trim(res, max) {
   }
   return res;
 }
+function trimList(res, key, max) {
+  const list = res[key];
+  if (Array.isArray(list) && list.length > max) {
+    return { ...res, [key]: list.slice(0, max) };
+  }
+  return res;
+}
 function scavioSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search the web with Google via the Scavio API. Returns real-time organic search results.",
+    description: "Search the web with Google via the Scavio API (1 credit). Returns real-time organic search results, each with a title, link, and snippet, under `organic_results`.",
     inputSchema: import_zod.z.object({
       query: import_zod.z.string().describe("The search query."),
-      country_code: import_zod.z.string().optional().describe('Two-letter country code to localize results, e.g. "us".'),
-      language: import_zod.z.string().optional().describe('Two-letter language code, e.g. "en".')
+      countryCode: import_zod.z.string().optional().describe('Two-letter country code to localize results, e.g. "us".'),
+      language: import_zod.z.string().optional().describe('Two-letter UI language code, e.g. "en".'),
+      page: import_zod.z.number().int().optional().describe("1-based result page; page 2 starts at result 10."),
+      device: import_zod.z.enum(["desktop", "mobile"]).optional().describe("Device to emulate."),
+      nfpr: import_zod.z.boolean().optional().describe("Disable spelling auto-correction / similar-result substitution when true.")
     }),
-    execute: async ({ query, country_code, language }) => trim(await c.google.search({ query, country_code, language }), max)
+    execute: async ({ query, countryCode, language, page, device, nfpr }) => {
+      const params = { query };
+      if (countryCode) params.gl = countryCode;
+      if (language) params.hl = language;
+      if (page && page > 1) params.start = (page - 1) * 10;
+      if (device) params.device = device;
+      if (nfpr !== void 0) params.nfpr = nfpr;
+      return trimList(await c.google.search(params), "organic_results", max);
+    }
   });
 }
 function scavioYoutubeSearch(config) {
@@ -112,7 +130,14 @@ function scavioTiktokSearch(config) {
       sort_type: import_zod.z.string().optional().describe("Sort order for results."),
       publish_time: import_zod.z.string().optional().describe("Filter by publish time window.")
     }),
-    execute: async ({ keyword, sort_type, publish_time }) => trim(await c.tiktok.searchVideos({ keyword, sort_type, publish_time }), max)
+    execute: async ({ keyword, sort_type, publish_time }) => trim(
+      await c.tiktok.searchVideos({
+        keyword,
+        sort_type,
+        publish_time
+      }),
+      max
+    )
   });
 }
 function scavioInstagramSearch(config) {
