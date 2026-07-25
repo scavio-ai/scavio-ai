@@ -73,11 +73,15 @@ describe("@scavio/ai-sdk tools", () => {
     });
   });
 
-  it("scavioTools exposes all seven tools keyed by name", () => {
+  it("scavioTools exposes every tool keyed by name", () => {
     const tools = scavioTools({ apiKey: "test" });
     expect(Object.keys(tools)).toEqual([
       "scavio_search",
       "scavio_youtube_search",
+      "scavio_youtube_video",
+      "scavio_youtube_transcript",
+      "scavio_youtube_comments",
+      "scavio_youtube_channel",
       "scavio_reddit_search",
       "scavio_amazon_search",
       "scavio_walmart_search",

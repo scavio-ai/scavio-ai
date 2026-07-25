@@ -54,16 +54,85 @@ export function scavioSearch(config?: ScavioToolConfig) {
   });
 }
 
-/** YouTube video search. */
+/** YouTube video search (2 credits). */
 export function scavioYoutubeSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search YouTube for videos via the Scavio API.",
+    description: "Search YouTube for videos, channels, or playlists via the Scavio API (2 credits).",
     inputSchema: z.object({
       query: z.string().describe("The search query."),
+      upload_date: z.string().optional().describe("Upload date filter, e.g. 'today', 'this_week', 'this_month'."),
+      type: z.string().optional().describe("Result type: 'video', 'channel', 'playlist', 'movie'."),
+      duration: z.string().optional().describe("Duration filter: 'short', 'medium', 'long'."),
+      sort_by: z.string().optional().describe("Sort order: 'relevance', 'date', 'view_count', 'rating'."),
     }),
-    execute: async ({ query }) => trim(await c.youtube.search({ query }), max),
+    execute: async ({ query, upload_date, type, duration, sort_by }) =>
+      trim(
+        await c.youtube.search({ query, upload_date, type, duration, sort_by } as Parameters<typeof c.youtube.search>[0]),
+        max,
+      ),
+  });
+}
+
+/** YouTube video details (1 credit). */
+export function scavioYoutubeVideo(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description:
+      "Fetch full details for a YouTube video (title, author, view count, description, captions, chapters) via the Scavio API.",
+    inputSchema: z.object({
+      video_id: z.string().describe("YouTube video id or a full watch URL."),
+    }),
+    execute: async ({ video_id }) => c.youtube.video({ video_id }),
+  });
+}
+
+/** YouTube video transcript / subtitles (8 credits). */
+export function scavioYoutubeTranscript(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description:
+      "Fetch a YouTube video's transcript or timed subtitles via the Scavio API (8 credits).",
+    inputSchema: z.object({
+      video_id: z.string().describe("YouTube video id or a full watch URL."),
+      language: z.string().optional().describe("Transcript language code (default 'en')."),
+      format: z.enum(["text", "srt"]).optional().describe("'text' for a plain transcript, 'srt' for timed subtitles."),
+    }),
+    execute: async ({ video_id, language, format }) =>
+      c.youtube.transcript({ video_id, language, format } as Parameters<typeof c.youtube.transcript>[0]),
+  });
+}
+
+/** YouTube video comments (1 credit). */
+export function scavioYoutubeComments(config?: ScavioToolConfig) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "List comments on a YouTube video via the Scavio API.",
+    inputSchema: z.object({
+      video_id: z.string().describe("YouTube video id or a full watch URL."),
+      cursor: z.string().optional().describe("Pagination cursor."),
+    }),
+    execute: async ({ video_id, cursor }) =>
+      trimList(
+        await c.youtube.comments({ video_id, cursor } as Parameters<typeof c.youtube.comments>[0]),
+        "comments",
+        max,
+      ),
+  });
+}
+
+/** YouTube channel details (1 credit). */
+export function scavioYoutubeChannel(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description:
+      "Fetch a YouTube channel's details (subscribers, video count, views, links) via the Scavio API.",
+    inputSchema: z.object({
+      channel_id: z.string().describe("YouTube channel id, @handle, or channel URL."),
+    }),
+    execute: async ({ channel_id }) => c.youtube.channel({ channel_id }),
   });
 }
 
@@ -153,6 +222,10 @@ export function scavioTools(config?: ScavioToolConfig) {
   return {
     scavio_search: scavioSearch(config),
     scavio_youtube_search: scavioYoutubeSearch(config),
+    scavio_youtube_video: scavioYoutubeVideo(config),
+    scavio_youtube_transcript: scavioYoutubeTranscript(config),
+    scavio_youtube_comments: scavioYoutubeComments(config),
+    scavio_youtube_channel: scavioYoutubeChannel(config),
     scavio_reddit_search: scavioRedditSearch(config),
     scavio_amazon_search: scavioAmazonSearch(config),
     scavio_walmart_search: scavioWalmartSearch(config),
