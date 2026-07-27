@@ -47,7 +47,7 @@ const res2 = await generateText({
 | `scavioAmazonSearch` | `scavio_amazon_search` | Amazon products |
 | `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products |
 | `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos |
-| `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users |
+| `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users (10 credits) |
 | `scavioTools` | all of the above | bundle for `tools:` |
 
 Each factory accepts `{ apiKey?, maxResults?, ...ScavioConfig }`. The key falls back to `SCAVIO_API_KEY`.
