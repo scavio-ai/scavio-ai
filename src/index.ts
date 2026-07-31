@@ -151,17 +151,30 @@ export function scavioRedditSearch(config?: ScavioToolConfig) {
   });
 }
 
-/** Amazon product search. */
+/**
+ * Amazon product search.
+ *
+ * `domain` was dropped in favour of `country`, a two-letter marketplace code -
+ * the upstream provider changed in 2026-07 and no longer takes a domain
+ * suffix. It still works on the wire as a deprecated alias, but a model should
+ * only ever see one spelling of a param.
+ */
 export function scavioAmazonSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search Amazon for products via the Scavio API.",
+    description:
+      "Search Amazon for products via the Scavio API. Results are unsorted and cannot be filtered by category, merchant or price.",
     inputSchema: z.object({
       query: z.string().describe("The product search query."),
-      domain: z.string().optional().describe('Amazon domain, e.g. "amazon.com".'),
+      country: z
+        .string()
+        .optional()
+        .describe(
+          "Marketplace country code (ISO 3166-1 alpha-2), not a domain: us (default), gb (the UK is gb, not uk), de, fr, jp, ... An unknown code falls back to us."
+        ),
     }),
-    execute: async ({ query, domain }) => trim(await c.amazon.search({ query, domain }), max),
+    execute: async ({ query, country }) => trim(await c.amazon.search({ query, country }), max),
   });
 }
 
