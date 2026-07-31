@@ -4,6 +4,14 @@ Scavio search tools for the [Vercel AI SDK](https://sdk.vercel.ai). Give any AI 
 search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram via the
 [Scavio](https://scavio.dev) API.
 
+> **Amazon changed (breaking).** The upstream provider moved in 2026-07:
+> `domain` is replaced by `country`, a two-letter marketplace code (`us`, `gb`
+> -- the UK is `gb`, not `uk` -- `de`, `jp`, ...), and `sort_by`, `pages`,
+> `category_id`, `merchant_id`, `language`, `currency`, `device`, `zip_code`
+> and `autoselect_variant` are gone. The marketplace ignores all of them
+> (`sort_by` returns the identical unordered set for every value), so they are
+> removed rather than kept as silent no-ops. Rank and filter results yourself.
+
 ## Install
 
 ```bash
