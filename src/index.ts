@@ -27,6 +27,22 @@ function trimList(res: Record<string, unknown>, key: string, max: number): Recor
   return res;
 }
 
+/**
+ * Amazon is one of the endpoints that nests its payload under `data` - the
+ * response is `{ data: { products: [...] }, response_time, credits_used, ... }`,
+ * not a flat body like Google v2. Trimming the top level therefore silently
+ * does nothing, so the Amazon tools trim inside `data`.
+ */
+function trimData(res: Record<string, unknown>, key: string, max: number): Record<string, unknown> {
+  const data = res.data;
+  if (!data || typeof data !== "object") return res;
+  const list = (data as Record<string, unknown>)[key];
+  if (Array.isArray(list) && list.length > max) {
+    return { ...res, data: { ...(data as Record<string, unknown>), [key]: list.slice(0, max) } };
+  }
+  return res;
+}
+
 /** Google web search (/api/v2/google, 1 credit). */
 export function scavioSearch(config?: ScavioToolConfig) {
   const c = client(config);
@@ -174,7 +190,29 @@ export function scavioAmazonSearch(config?: ScavioToolConfig) {
           "Marketplace country code (ISO 3166-1 alpha-2), not a domain: us (default), gb (the UK is gb, not uk), de, fr, jp, ... An unknown code falls back to us."
         ),
     }),
-    execute: async ({ query, country }) => trim(await c.amazon.search({ query, country }), max),
+    execute: async ({ query, country }) =>
+      trimData(await c.amazon.search({ query, country }), "products", max),
+  });
+}
+
+/** Every seller offer for one Amazon ASIN. */
+export function scavioAmazonOffers(config?: ScavioToolConfig) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description:
+      "List every seller offer for one Amazon ASIN via the Scavio API: price, seller, condition, shipping, and which offer holds the buy box. Page 1 only.",
+    inputSchema: z.object({
+      asin: z.string().describe("Amazon Standard Identification Number (ASIN) of the product."),
+      country: z
+        .string()
+        .optional()
+        .describe(
+          "Marketplace country code (ISO 3166-1 alpha-2), not a domain: us (default), gb (the UK is gb, not uk), de, fr, jp, ... An unknown code falls back to us."
+        ),
+    }),
+    execute: async ({ asin, country }) =>
+      trimData(await c.amazon.offers({ asin, country }), "offers", max),
   });
 }
 
@@ -241,6 +279,7 @@ export function scavioTools(config?: ScavioToolConfig) {
     scavio_youtube_channel: scavioYoutubeChannel(config),
     scavio_reddit_search: scavioRedditSearch(config),
     scavio_amazon_search: scavioAmazonSearch(config),
+    scavio_amazon_offers: scavioAmazonOffers(config),
     scavio_walmart_search: scavioWalmartSearch(config),
     scavio_tiktok_search: scavioTiktokSearch(config),
     scavio_instagram_search: scavioInstagramSearch(config),

@@ -53,6 +53,7 @@ const res2 = await generateText({
 | `scavioYoutubeSearch` | `scavio_youtube_search` | YouTube video search |
 | `scavioRedditSearch` | `scavio_reddit_search` | Reddit (2 credits) |
 | `scavioAmazonSearch` | `scavio_amazon_search` | Amazon products |
+| `scavioAmazonOffers` | `scavio_amazon_offers` | Amazon seller offers for one ASIN |
 | `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products |
 | `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos |
 | `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users (10 credits) |
