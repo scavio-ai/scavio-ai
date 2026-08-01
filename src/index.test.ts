@@ -4,20 +4,28 @@ const search = vi.fn();
 const youtubeSearch = vi.fn();
 
 const tiktokSearch = vi.fn();
+const amazonSearch = vi.fn();
+const amazonOffers = vi.fn();
 
 vi.mock("scavio", () => ({
   Scavio: class {
     google = { search };
     youtube = { search: youtubeSearch };
     reddit = { search: vi.fn() };
-    amazon = { search: vi.fn() };
+    amazon = { search: amazonSearch, offers: amazonOffers };
     walmart = { search: vi.fn() };
     tiktok = { searchVideos: tiktokSearch };
     instagram = { searchUsers: vi.fn() };
   },
 }));
 
-import { scavioSearch, scavioTiktokSearch, scavioTools } from "./index.js";
+import {
+  scavioSearch,
+  scavioTiktokSearch,
+  scavioTools,
+  scavioAmazonSearch,
+  scavioAmazonOffers,
+} from "./index.js";
 
 describe("@scavio/ai-sdk tools", () => {
   beforeEach(() => {
@@ -73,6 +81,48 @@ describe("@scavio/ai-sdk tools", () => {
     });
   });
 
+  // Amazon nests its payload under `data`, unlike Google v2 which is flat.
+  // Trimming the top level is a silent no-op there, which is exactly the bug
+  // these two cover.
+  it("scavioAmazonSearch trims products inside data", async () => {
+    amazonSearch.mockResolvedValue({
+      data: {
+        query: "laptop",
+        count: 20,
+        products: Array.from({ length: 20 }, (_, i) => ({ asin: `A${i}`, price: i })),
+      },
+      response_time: 1200,
+      credits_used: 1,
+    });
+    const t = scavioAmazonSearch({ apiKey: "test", maxResults: 4 });
+    const out = (await t.execute!({ query: "laptop" }, {} as never)) as {
+      data: { products: unknown[]; count: number };
+      credits_used: number;
+    };
+    expect(out.data.products).toHaveLength(4);
+    expect(out.data.count).toBe(20);
+    expect(out.credits_used).toBe(1);
+    expect(amazonSearch).toHaveBeenCalledWith({ query: "laptop", country: undefined });
+  });
+
+  it("scavioAmazonOffers trims offers inside data", async () => {
+    amazonOffers.mockResolvedValue({
+      data: {
+        asin: "B09V3KXJPB",
+        total_offers: 15,
+        offers: Array.from({ length: 15 }, (_, i) => ({ seller_id: `S${i}` })),
+      },
+      credits_used: 1,
+    });
+    const t = scavioAmazonOffers({ apiKey: "test", maxResults: 3 });
+    const out = (await t.execute!({ asin: "B09V3KXJPB", country: "gb" }, {} as never)) as {
+      data: { offers: unknown[]; total_offers: number };
+    };
+    expect(out.data.offers).toHaveLength(3);
+    expect(out.data.total_offers).toBe(15);
+    expect(amazonOffers).toHaveBeenCalledWith({ asin: "B09V3KXJPB", country: "gb" });
+  });
+
   it("scavioTools exposes every tool keyed by name", () => {
     const tools = scavioTools({ apiKey: "test" });
     expect(Object.keys(tools)).toEqual([
@@ -84,6 +134,7 @@ describe("@scavio/ai-sdk tools", () => {
       "scavio_youtube_channel",
       "scavio_reddit_search",
       "scavio_amazon_search",
+      "scavio_amazon_offers",
       "scavio_walmart_search",
       "scavio_tiktok_search",
       "scavio_instagram_search",

@@ -14,19 +14,54 @@ declare function scavioSearch(config?: ScavioToolConfig): ai.Tool<{
     device?: "desktop" | "mobile" | undefined;
     nfpr?: boolean | undefined;
 }, Record<string, unknown>>;
-/** YouTube video search. */
+/** YouTube video search (2 credits). */
 declare function scavioYoutubeSearch(config?: ScavioToolConfig): ai.Tool<{
     query: string;
+    type?: string | undefined;
+    upload_date?: string | undefined;
+    duration?: string | undefined;
+    sort_by?: string | undefined;
+}, Record<string, unknown>>;
+/** YouTube video details (1 credit). */
+declare function scavioYoutubeVideo(config?: ScavioToolConfig): ai.Tool<{
+    video_id: string;
+}, Record<string, unknown>>;
+/** YouTube video transcript / subtitles (8 credits). */
+declare function scavioYoutubeTranscript(config?: ScavioToolConfig): ai.Tool<{
+    video_id: string;
+    language?: string | undefined;
+    format?: "text" | "srt" | undefined;
+}, Record<string, unknown>>;
+/** YouTube video comments (1 credit). */
+declare function scavioYoutubeComments(config?: ScavioToolConfig): ai.Tool<{
+    video_id: string;
+    cursor?: string | undefined;
+}, Record<string, unknown>>;
+/** YouTube channel details (1 credit). */
+declare function scavioYoutubeChannel(config?: ScavioToolConfig): ai.Tool<{
+    channel_id: string;
 }, Record<string, unknown>>;
 /** Reddit post/community search (costs 2 credits). */
 declare function scavioRedditSearch(config?: ScavioToolConfig): ai.Tool<{
     query: string;
     sort?: string | undefined;
 }, Record<string, unknown>>;
-/** Amazon product search. */
+/**
+ * Amazon product search.
+ *
+ * `domain` was dropped in favour of `country`, a two-letter marketplace code -
+ * the upstream provider changed in 2026-07 and no longer takes a domain
+ * suffix. It still works on the wire as a deprecated alias, but a model should
+ * only ever see one spelling of a param.
+ */
 declare function scavioAmazonSearch(config?: ScavioToolConfig): ai.Tool<{
     query: string;
-    domain?: string | undefined;
+    country?: string | undefined;
+}, Record<string, unknown>>;
+/** Every seller offer for one Amazon ASIN. */
+declare function scavioAmazonOffers(config?: ScavioToolConfig): ai.Tool<{
+    asin: string;
+    country?: string | undefined;
 }, Record<string, unknown>>;
 /** Walmart product search. */
 declare function scavioWalmartSearch(config?: ScavioToolConfig): ai.Tool<{
@@ -57,6 +92,25 @@ declare function scavioTools(config?: ScavioToolConfig): {
     }, Record<string, unknown>>;
     scavio_youtube_search: ai.Tool<{
         query: string;
+        type?: string | undefined;
+        upload_date?: string | undefined;
+        duration?: string | undefined;
+        sort_by?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_youtube_video: ai.Tool<{
+        video_id: string;
+    }, Record<string, unknown>>;
+    scavio_youtube_transcript: ai.Tool<{
+        video_id: string;
+        language?: string | undefined;
+        format?: "text" | "srt" | undefined;
+    }, Record<string, unknown>>;
+    scavio_youtube_comments: ai.Tool<{
+        video_id: string;
+        cursor?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_youtube_channel: ai.Tool<{
+        channel_id: string;
     }, Record<string, unknown>>;
     scavio_reddit_search: ai.Tool<{
         query: string;
@@ -64,7 +118,11 @@ declare function scavioTools(config?: ScavioToolConfig): {
     }, Record<string, unknown>>;
     scavio_amazon_search: ai.Tool<{
         query: string;
-        domain?: string | undefined;
+        country?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_amazon_offers: ai.Tool<{
+        asin: string;
+        country?: string | undefined;
     }, Record<string, unknown>>;
     scavio_walmart_search: ai.Tool<{
         query: string;
@@ -79,4 +137,4 @@ declare function scavioTools(config?: ScavioToolConfig): {
     }, Record<string, unknown>>;
 };
 
-export { type ScavioToolConfig, scavioAmazonSearch, scavioInstagramSearch, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeSearch };
+export { type ScavioToolConfig, scavioAmazonOffers, scavioAmazonSearch, scavioInstagramSearch, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeChannel, scavioYoutubeComments, scavioYoutubeSearch, scavioYoutubeTranscript, scavioYoutubeVideo };

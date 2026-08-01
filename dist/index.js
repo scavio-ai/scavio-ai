@@ -19,6 +19,15 @@ function trimList(res, key, max) {
   }
   return res;
 }
+function trimData(res, key, max) {
+  const data = res.data;
+  if (!data || typeof data !== "object") return res;
+  const list = data[key];
+  if (Array.isArray(list) && list.length > max) {
+    return { ...res, data: { ...data, [key]: list.slice(0, max) } };
+  }
+  return res;
+}
 function scavioSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
@@ -47,11 +56,66 @@ function scavioYoutubeSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search YouTube for videos via the Scavio API.",
+    description: "Search YouTube for videos, channels, or playlists via the Scavio API (2 credits).",
     inputSchema: z.object({
-      query: z.string().describe("The search query.")
+      query: z.string().describe("The search query."),
+      upload_date: z.string().optional().describe("Upload date filter, e.g. 'today', 'this_week', 'this_month'."),
+      type: z.string().optional().describe("Result type: 'video', 'channel', 'playlist', 'movie'."),
+      duration: z.string().optional().describe("Duration filter: 'short', 'medium', 'long'."),
+      sort_by: z.string().optional().describe("Sort order: 'relevance', 'date', 'view_count', 'rating'.")
     }),
-    execute: async ({ query }) => trim(await c.youtube.search({ query }), max)
+    execute: async ({ query, upload_date, type, duration, sort_by }) => trim(
+      await c.youtube.search({ query, upload_date, type, duration, sort_by }),
+      max
+    )
+  });
+}
+function scavioYoutubeVideo(config) {
+  const c = client(config);
+  return tool({
+    description: "Fetch full details for a YouTube video (title, author, view count, description, captions, chapters) via the Scavio API.",
+    inputSchema: z.object({
+      video_id: z.string().describe("YouTube video id or a full watch URL.")
+    }),
+    execute: async ({ video_id }) => c.youtube.video({ video_id })
+  });
+}
+function scavioYoutubeTranscript(config) {
+  const c = client(config);
+  return tool({
+    description: "Fetch a YouTube video's transcript or timed subtitles via the Scavio API (8 credits).",
+    inputSchema: z.object({
+      video_id: z.string().describe("YouTube video id or a full watch URL."),
+      language: z.string().optional().describe("Transcript language code (default 'en')."),
+      format: z.enum(["text", "srt"]).optional().describe("'text' for a plain transcript, 'srt' for timed subtitles.")
+    }),
+    execute: async ({ video_id, language, format }) => c.youtube.transcript({ video_id, language, format })
+  });
+}
+function scavioYoutubeComments(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "List comments on a YouTube video via the Scavio API.",
+    inputSchema: z.object({
+      video_id: z.string().describe("YouTube video id or a full watch URL."),
+      cursor: z.string().optional().describe("Pagination cursor.")
+    }),
+    execute: async ({ video_id, cursor }) => trimList(
+      await c.youtube.comments({ video_id, cursor }),
+      "comments",
+      max
+    )
+  });
+}
+function scavioYoutubeChannel(config) {
+  const c = client(config);
+  return tool({
+    description: "Fetch a YouTube channel's details (subscribers, video count, views, links) via the Scavio API.",
+    inputSchema: z.object({
+      channel_id: z.string().describe("YouTube channel id, @handle, or channel URL.")
+    }),
+    execute: async ({ channel_id }) => c.youtube.channel({ channel_id })
   });
 }
 function scavioRedditSearch(config) {
@@ -70,12 +134,28 @@ function scavioAmazonSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search Amazon for products via the Scavio API.",
+    description: "Search Amazon for products via the Scavio API. Results are unsorted and cannot be filtered by category, merchant or price.",
     inputSchema: z.object({
       query: z.string().describe("The product search query."),
-      domain: z.string().optional().describe('Amazon domain, e.g. "amazon.com".')
+      country: z.string().optional().describe(
+        "Marketplace country code (ISO 3166-1 alpha-2), not a domain: us (default), gb (the UK is gb, not uk), de, fr, jp, ... An unknown code falls back to us."
+      )
     }),
-    execute: async ({ query, domain }) => trim(await c.amazon.search({ query, domain }), max)
+    execute: async ({ query, country }) => trimData(await c.amazon.search({ query, country }), "products", max)
+  });
+}
+function scavioAmazonOffers(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "List every seller offer for one Amazon ASIN via the Scavio API: price, seller, condition, shipping, and which offer holds the buy box. Page 1 only.",
+    inputSchema: z.object({
+      asin: z.string().describe("Amazon Standard Identification Number (ASIN) of the product."),
+      country: z.string().optional().describe(
+        "Marketplace country code (ISO 3166-1 alpha-2), not a domain: us (default), gb (the UK is gb, not uk), de, fr, jp, ... An unknown code falls back to us."
+      )
+    }),
+    execute: async ({ asin, country }) => trimData(await c.amazon.offers({ asin, country }), "offers", max)
   });
 }
 function scavioWalmartSearch(config) {
@@ -124,14 +204,20 @@ function scavioTools(config) {
   return {
     scavio_search: scavioSearch(config),
     scavio_youtube_search: scavioYoutubeSearch(config),
+    scavio_youtube_video: scavioYoutubeVideo(config),
+    scavio_youtube_transcript: scavioYoutubeTranscript(config),
+    scavio_youtube_comments: scavioYoutubeComments(config),
+    scavio_youtube_channel: scavioYoutubeChannel(config),
     scavio_reddit_search: scavioRedditSearch(config),
     scavio_amazon_search: scavioAmazonSearch(config),
+    scavio_amazon_offers: scavioAmazonOffers(config),
     scavio_walmart_search: scavioWalmartSearch(config),
     scavio_tiktok_search: scavioTiktokSearch(config),
     scavio_instagram_search: scavioInstagramSearch(config)
   };
 }
 export {
+  scavioAmazonOffers,
   scavioAmazonSearch,
   scavioInstagramSearch,
   scavioRedditSearch,
@@ -139,6 +225,10 @@ export {
   scavioTiktokSearch,
   scavioTools,
   scavioWalmartSearch,
-  scavioYoutubeSearch
+  scavioYoutubeChannel,
+  scavioYoutubeComments,
+  scavioYoutubeSearch,
+  scavioYoutubeTranscript,
+  scavioYoutubeVideo
 };
 //# sourceMappingURL=index.js.map
