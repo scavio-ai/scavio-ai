@@ -3,7 +3,10 @@ import { z } from "zod";
 import { Scavio, type ScavioConfig, type GoogleSearchOptions } from "scavio";
 
 export interface ScavioToolConfig extends ScavioConfig {
-  /** Max number of results to keep in `results`-style lists. Defaults to 10. */
+  /**
+   * Max number of items to keep in the tool's result list. Defaults to 10.
+   * Trimmed inside `data` on every platform except Google, whose body is flat.
+   */
   maxResults?: number;
 }
 
@@ -11,15 +14,11 @@ function client(config?: ScavioToolConfig): Scavio {
   return new Scavio({ apiKey: config?.apiKey });
 }
 
-function trim(res: Record<string, unknown>, max: number): Record<string, unknown> {
-  const results = res.results;
-  if (Array.isArray(results) && results.length > max) {
-    return { ...res, results: results.slice(0, max) };
-  }
-  return res;
-}
-
-function trimList(res: Record<string, unknown>, key: string, max: number): Record<string, unknown> {
+/**
+ * Google is the ONLY family with a flat body: `organic_results` and friends sit
+ * at the top level, next to `response_time` / `credits_used` / `credits_remaining`.
+ */
+function trimFlat(res: Record<string, unknown>, key: string, max: number): Record<string, unknown> {
   const list = res[key];
   if (Array.isArray(list) && list.length > max) {
     return { ...res, [key]: list.slice(0, max) };
@@ -28,10 +27,10 @@ function trimList(res: Record<string, unknown>, key: string, max: number): Recor
 }
 
 /**
- * Amazon is one of the endpoints that nests its payload under `data` - the
- * response is `{ data: { products: [...] }, response_time, credits_used, ... }`,
- * not a flat body like Google v2. Trimming the top level therefore silently
- * does nothing, so the Amazon tools trim inside `data`.
+ * Every non-Google endpoint nests its payload under `data` - the response is
+ * `{ data: { products: [...] }, response_time, credits_used, credits_remaining }`.
+ * Trimming the top level is therefore a silent no-op, so those tools trim
+ * inside `data`.
  */
 function trimData(res: Record<string, unknown>, key: string, max: number): Record<string, unknown> {
   const data = res.data;
@@ -65,7 +64,7 @@ export function scavioSearch(config?: ScavioToolConfig) {
       if (page && page > 1) params.start = (page - 1) * 10;
       if (device) params.device = device;
       if (nfpr !== undefined) params.nfpr = nfpr;
-      return trimList(await c.google.search(params), "organic_results", max);
+      return trimFlat(await c.google.search(params), "organic_results", max);
     },
   });
 }
@@ -75,17 +74,22 @@ export function scavioYoutubeSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search YouTube for videos, channels, or playlists via the Scavio API (2 credits).",
+    description:
+      "Search YouTube for videos, channels, or playlists via the Scavio API (2 credits). Videos come back under `data.results`, with `data.channels` and `data.playlists` alongside.",
     inputSchema: z.object({
       query: z.string().describe("The search query."),
       upload_date: z.string().optional().describe("Upload date filter, e.g. 'today', 'this_week', 'this_month'."),
       type: z.string().optional().describe("Result type: 'video', 'channel', 'playlist', 'movie'."),
       duration: z.string().optional().describe("Duration filter: 'short', 'medium', 'long'."),
       sort_by: z.string().optional().describe("Sort order: 'relevance', 'date', 'view_count', 'rating'."),
+      cursor: z.string().optional().describe("Pagination cursor (`next_cursor`) from a prior response."),
     }),
-    execute: async ({ query, upload_date, type, duration, sort_by }) =>
-      trim(
-        await c.youtube.search({ query, upload_date, type, duration, sort_by } as Parameters<typeof c.youtube.search>[0]),
+    execute: async ({ query, upload_date, type, duration, sort_by, cursor }) =>
+      trimData(
+        await c.youtube.search({ query, upload_date, type, duration, sort_by, cursor } as Parameters<
+          typeof c.youtube.search
+        >[0]),
+        "results",
         max,
       ),
   });
@@ -131,7 +135,7 @@ export function scavioYoutubeComments(config?: ScavioToolConfig) {
       cursor: z.string().optional().describe("Pagination cursor."),
     }),
     execute: async ({ video_id, cursor }) =>
-      trimList(
+      trimData(
         await c.youtube.comments({ video_id, cursor } as Parameters<typeof c.youtube.comments>[0]),
         "comments",
         max,
@@ -152,18 +156,24 @@ export function scavioYoutubeChannel(config?: ScavioToolConfig) {
   });
 }
 
-/** Reddit post/community search (costs 2 credits). */
+/**
+ * Reddit post search (1 credit).
+ *
+ * The endpoint takes `query` and `cursor` and nothing else - it cannot sort or
+ * filter by type, so no such input is offered. The API silently ignores those
+ * params, which would leave a model believing it had filtered when it had not.
+ */
 export function scavioRedditSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search Reddit posts and communities via the Scavio API.",
+    description:
+      "Search Reddit posts via the Scavio API (1 credit). Returns matching posts under `data.results` with `data.next_cursor` for the next page. Results cannot be sorted or filtered by type.",
     inputSchema: z.object({
       query: z.string().describe("The search query."),
-      sort: z.string().optional().describe("Sort order for results."),
+      cursor: z.string().optional().describe("Pagination cursor (`next_cursor`) from a prior response."),
     }),
-    execute: async ({ query, sort }) =>
-      trim(await c.reddit.search({ query, sort } as Parameters<typeof c.reddit.search>[0]), max),
+    execute: async ({ query, cursor }) => trimData(await c.reddit.search({ query, cursor }), "results", max),
   });
 }
 
@@ -221,11 +231,11 @@ export function scavioWalmartSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search Walmart for products via the Scavio API.",
+    description: "Search Walmart for products via the Scavio API. Products come back under `data.products`.",
     inputSchema: z.object({
       query: z.string().describe("The product search query."),
     }),
-    execute: async ({ query }) => trim(await c.walmart.search({ query }), max),
+    execute: async ({ query }) => trimData(await c.walmart.search({ query }), "products", max),
   });
 }
 
@@ -234,19 +244,24 @@ export function scavioTiktokSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search TikTok for videos by keyword via the Scavio API.",
+    description:
+      "Search TikTok for videos by keyword via the Scavio API. Videos come back under `data.aweme_list`.",
     inputSchema: z.object({
       keyword: z.string().describe("The search keyword."),
-      sort_type: z.string().optional().describe("Sort order for results."),
-      publish_time: z.string().optional().describe("Filter by publish time window."),
+      sort_type: z.enum(["0", "1"]).optional().describe("Sort order: '0' relevance, '1' most likes."),
+      publish_time: z
+        .enum(["0", "1", "7", "30", "90", "180"])
+        .optional()
+        .describe("Publish window in days: '0' all time, '1', '7', '30', '90', '180'."),
     }),
     execute: async ({ keyword, sort_type, publish_time }) =>
-      trim(
+      trimData(
         await c.tiktok.searchVideos({
           keyword,
           sort_type,
           publish_time,
         } as Parameters<typeof c.tiktok.searchVideos>[0]),
+        "aweme_list",
         max,
       ),
   });
@@ -257,11 +272,12 @@ export function scavioInstagramSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search Instagram for users by keyword via the Scavio API.",
+    description:
+      "Search Instagram for users by keyword via the Scavio API (10 credits). Users come back under `data.users`.",
     inputSchema: z.object({
       keyword: z.string().describe("The search keyword."),
     }),
-    execute: async ({ keyword }) => trim(await c.instagram.searchUsers({ keyword }), max),
+    execute: async ({ keyword }) => trimData(await c.instagram.searchUsers({ keyword }), "users", max),
   });
 }
 

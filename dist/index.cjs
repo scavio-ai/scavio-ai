@@ -41,14 +41,7 @@ var import_scavio = require("scavio");
 function client(config) {
   return new import_scavio.Scavio({ apiKey: config?.apiKey });
 }
-function trim(res, max) {
-  const results = res.results;
-  if (Array.isArray(results) && results.length > max) {
-    return { ...res, results: results.slice(0, max) };
-  }
-  return res;
-}
-function trimList(res, key, max) {
+function trimFlat(res, key, max) {
   const list = res[key];
   if (Array.isArray(list) && list.length > max) {
     return { ...res, [key]: list.slice(0, max) };
@@ -84,7 +77,7 @@ function scavioSearch(config) {
       if (page && page > 1) params.start = (page - 1) * 10;
       if (device) params.device = device;
       if (nfpr !== void 0) params.nfpr = nfpr;
-      return trimList(await c.google.search(params), "organic_results", max);
+      return trimFlat(await c.google.search(params), "organic_results", max);
     }
   });
 }
@@ -92,16 +85,18 @@ function scavioYoutubeSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search YouTube for videos, channels, or playlists via the Scavio API (2 credits).",
+    description: "Search YouTube for videos, channels, or playlists via the Scavio API (2 credits). Videos come back under `data.results`, with `data.channels` and `data.playlists` alongside.",
     inputSchema: import_zod.z.object({
       query: import_zod.z.string().describe("The search query."),
       upload_date: import_zod.z.string().optional().describe("Upload date filter, e.g. 'today', 'this_week', 'this_month'."),
       type: import_zod.z.string().optional().describe("Result type: 'video', 'channel', 'playlist', 'movie'."),
       duration: import_zod.z.string().optional().describe("Duration filter: 'short', 'medium', 'long'."),
-      sort_by: import_zod.z.string().optional().describe("Sort order: 'relevance', 'date', 'view_count', 'rating'.")
+      sort_by: import_zod.z.string().optional().describe("Sort order: 'relevance', 'date', 'view_count', 'rating'."),
+      cursor: import_zod.z.string().optional().describe("Pagination cursor (`next_cursor`) from a prior response.")
     }),
-    execute: async ({ query, upload_date, type, duration, sort_by }) => trim(
-      await c.youtube.search({ query, upload_date, type, duration, sort_by }),
+    execute: async ({ query, upload_date, type, duration, sort_by, cursor }) => trimData(
+      await c.youtube.search({ query, upload_date, type, duration, sort_by, cursor }),
+      "results",
       max
     )
   });
@@ -137,7 +132,7 @@ function scavioYoutubeComments(config) {
       video_id: import_zod.z.string().describe("YouTube video id or a full watch URL."),
       cursor: import_zod.z.string().optional().describe("Pagination cursor.")
     }),
-    execute: async ({ video_id, cursor }) => trimList(
+    execute: async ({ video_id, cursor }) => trimData(
       await c.youtube.comments({ video_id, cursor }),
       "comments",
       max
@@ -158,12 +153,12 @@ function scavioRedditSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search Reddit posts and communities via the Scavio API.",
+    description: "Search Reddit posts via the Scavio API (1 credit). Returns matching posts under `data.results` with `data.next_cursor` for the next page. Results cannot be sorted or filtered by type.",
     inputSchema: import_zod.z.object({
       query: import_zod.z.string().describe("The search query."),
-      sort: import_zod.z.string().optional().describe("Sort order for results.")
+      cursor: import_zod.z.string().optional().describe("Pagination cursor (`next_cursor`) from a prior response.")
     }),
-    execute: async ({ query, sort }) => trim(await c.reddit.search({ query, sort }), max)
+    execute: async ({ query, cursor }) => trimData(await c.reddit.search({ query, cursor }), "results", max)
   });
 }
 function scavioAmazonSearch(config) {
@@ -198,29 +193,30 @@ function scavioWalmartSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search Walmart for products via the Scavio API.",
+    description: "Search Walmart for products via the Scavio API. Products come back under `data.products`.",
     inputSchema: import_zod.z.object({
       query: import_zod.z.string().describe("The product search query.")
     }),
-    execute: async ({ query }) => trim(await c.walmart.search({ query }), max)
+    execute: async ({ query }) => trimData(await c.walmart.search({ query }), "products", max)
   });
 }
 function scavioTiktokSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search TikTok for videos by keyword via the Scavio API.",
+    description: "Search TikTok for videos by keyword via the Scavio API. Videos come back under `data.aweme_list`.",
     inputSchema: import_zod.z.object({
       keyword: import_zod.z.string().describe("The search keyword."),
-      sort_type: import_zod.z.string().optional().describe("Sort order for results."),
-      publish_time: import_zod.z.string().optional().describe("Filter by publish time window.")
+      sort_type: import_zod.z.enum(["0", "1"]).optional().describe("Sort order: '0' relevance, '1' most likes."),
+      publish_time: import_zod.z.enum(["0", "1", "7", "30", "90", "180"]).optional().describe("Publish window in days: '0' all time, '1', '7', '30', '90', '180'.")
     }),
-    execute: async ({ keyword, sort_type, publish_time }) => trim(
+    execute: async ({ keyword, sort_type, publish_time }) => trimData(
       await c.tiktok.searchVideos({
         keyword,
         sort_type,
         publish_time
       }),
+      "aweme_list",
       max
     )
   });
@@ -229,11 +225,11 @@ function scavioInstagramSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search Instagram for users by keyword via the Scavio API.",
+    description: "Search Instagram for users by keyword via the Scavio API (10 credits). Users come back under `data.users`.",
     inputSchema: import_zod.z.object({
       keyword: import_zod.z.string().describe("The search keyword.")
     }),
-    execute: async ({ keyword }) => trim(await c.instagram.searchUsers({ keyword }), max)
+    execute: async ({ keyword }) => trimData(await c.instagram.searchUsers({ keyword }), "users", max)
   });
 }
 function scavioTools(config) {

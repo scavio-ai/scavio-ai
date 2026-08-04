@@ -30,7 +30,7 @@ import { scavioSearch, scavioTools } from "@scavio/ai-sdk";
 
 // A single tool:
 const res = await generateText({
-  model: openai("gpt-4o-mini"),
+  model: openai("gpt-5.5"),
   tools: { scavio_search: scavioSearch({ maxResults: 5 }) },
   stopWhen: stepCountIs(3),
   prompt: "Find the official GitHub repo of the Agno framework",
@@ -38,7 +38,7 @@ const res = await generateText({
 
 // Or all tools at once:
 const res2 = await generateText({
-  model: openai("gpt-4o-mini"),
+  model: openai("gpt-5.5"),
   tools: scavioTools(),
   stopWhen: stepCountIs(3),
   prompt: "Compare prices for a mechanical keyboard on Amazon and Walmart",
@@ -49,18 +49,33 @@ const res2 = await generateText({
 
 | Factory | Tool name | Provider |
 | --- | --- | --- |
-| `scavioSearch` | `scavio_search` | Google web search |
-| `scavioYoutubeSearch` | `scavio_youtube_search` | YouTube video search |
-| `scavioRedditSearch` | `scavio_reddit_search` | Reddit (2 credits) |
-| `scavioAmazonSearch` | `scavio_amazon_search` | Amazon products |
-| `scavioAmazonOffers` | `scavio_amazon_offers` | Amazon seller offers for one ASIN |
-| `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products |
-| `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos |
+| `scavioSearch` | `scavio_search` | Google web search, `/api/v2/google` (1 credit) |
+| `scavioYoutubeSearch` | `scavio_youtube_search` | YouTube video search (2 credits) |
+| `scavioYoutubeVideo` | `scavio_youtube_video` | YouTube video details (1 credit) |
+| `scavioYoutubeTranscript` | `scavio_youtube_transcript` | YouTube transcript / subtitles (8 credits) |
+| `scavioYoutubeComments` | `scavio_youtube_comments` | YouTube video comments (1 credit) |
+| `scavioYoutubeChannel` | `scavio_youtube_channel` | YouTube channel details (1 credit) |
+| `scavioRedditSearch` | `scavio_reddit_search` | Reddit posts (1 credit) |
+| `scavioAmazonSearch` | `scavio_amazon_search` | Amazon products (1 credit) |
+| `scavioAmazonOffers` | `scavio_amazon_offers` | Amazon seller offers for one ASIN (1 credit) |
+| `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products (1 credit) |
+| `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos (1 credit) |
 | `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users (10 credits) |
 | `scavioTools` | all of the above | bundle for `tools:` |
 
 Each factory accepts `{ apiKey?, maxResults?, ...ScavioConfig }`. The key falls back to `SCAVIO_API_KEY`.
-Get a key at [dashboard.scavio.dev](https://dashboard.scavio.dev).
+Get a key at [dashboard.scavio.dev](https://dashboard.scavio.dev) - new accounts get 50 free credits, no
+credit card.
+
+`maxResults` trims the result list in place. Google returns a flat body, so it trims
+`organic_results`; every other endpoint nests its payload under `data`, so those trim inside `data`
+(`data.results`, `data.products`, `data.aweme_list`, `data.users`, ...) and the
+`{ data, response_time, credits_used, credits_remaining }` envelope is preserved.
+
+These tools cover the most common surfaces. The full Scavio API - 98 endpoints across Google,
+YouTube, Amazon, Walmart, Reddit, TikTok, TikTok Shop, Instagram, X and LinkedIn - is available
+directly through the [`scavio`](https://www.npmjs.com/package/scavio) SDK or the
+[MCP server](https://scavio.dev/docs).
 
 ## License
 

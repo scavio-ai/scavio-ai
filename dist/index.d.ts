@@ -2,7 +2,10 @@ import * as ai from 'ai';
 import { ScavioConfig } from 'scavio';
 
 interface ScavioToolConfig extends ScavioConfig {
-    /** Max number of results to keep in `results`-style lists. Defaults to 10. */
+    /**
+     * Max number of items to keep in the tool's result list. Defaults to 10.
+     * Trimmed inside `data` on every platform except Google, whose body is flat.
+     */
     maxResults?: number;
 }
 /** Google web search (/api/v2/google, 1 credit). */
@@ -21,6 +24,7 @@ declare function scavioYoutubeSearch(config?: ScavioToolConfig): ai.Tool<{
     upload_date?: string | undefined;
     duration?: string | undefined;
     sort_by?: string | undefined;
+    cursor?: string | undefined;
 }, Record<string, unknown>>;
 /** YouTube video details (1 credit). */
 declare function scavioYoutubeVideo(config?: ScavioToolConfig): ai.Tool<{
@@ -41,10 +45,16 @@ declare function scavioYoutubeComments(config?: ScavioToolConfig): ai.Tool<{
 declare function scavioYoutubeChannel(config?: ScavioToolConfig): ai.Tool<{
     channel_id: string;
 }, Record<string, unknown>>;
-/** Reddit post/community search (costs 2 credits). */
+/**
+ * Reddit post search (1 credit).
+ *
+ * The endpoint takes `query` and `cursor` and nothing else - it cannot sort or
+ * filter by type, so no such input is offered. The API silently ignores those
+ * params, which would leave a model believing it had filtered when it had not.
+ */
 declare function scavioRedditSearch(config?: ScavioToolConfig): ai.Tool<{
     query: string;
-    sort?: string | undefined;
+    cursor?: string | undefined;
 }, Record<string, unknown>>;
 /**
  * Amazon product search.
@@ -70,8 +80,8 @@ declare function scavioWalmartSearch(config?: ScavioToolConfig): ai.Tool<{
 /** TikTok video search. */
 declare function scavioTiktokSearch(config?: ScavioToolConfig): ai.Tool<{
     keyword: string;
-    sort_type?: string | undefined;
-    publish_time?: string | undefined;
+    sort_type?: "0" | "1" | undefined;
+    publish_time?: "0" | "1" | "7" | "30" | "90" | "180" | undefined;
 }, Record<string, unknown>>;
 /** Instagram user search. */
 declare function scavioInstagramSearch(config?: ScavioToolConfig): ai.Tool<{
@@ -96,6 +106,7 @@ declare function scavioTools(config?: ScavioToolConfig): {
         upload_date?: string | undefined;
         duration?: string | undefined;
         sort_by?: string | undefined;
+        cursor?: string | undefined;
     }, Record<string, unknown>>;
     scavio_youtube_video: ai.Tool<{
         video_id: string;
@@ -114,7 +125,7 @@ declare function scavioTools(config?: ScavioToolConfig): {
     }, Record<string, unknown>>;
     scavio_reddit_search: ai.Tool<{
         query: string;
-        sort?: string | undefined;
+        cursor?: string | undefined;
     }, Record<string, unknown>>;
     scavio_amazon_search: ai.Tool<{
         query: string;
@@ -129,8 +140,8 @@ declare function scavioTools(config?: ScavioToolConfig): {
     }, Record<string, unknown>>;
     scavio_tiktok_search: ai.Tool<{
         keyword: string;
-        sort_type?: string | undefined;
-        publish_time?: string | undefined;
+        sort_type?: "0" | "1" | undefined;
+        publish_time?: "0" | "1" | "7" | "30" | "90" | "180" | undefined;
     }, Record<string, unknown>>;
     scavio_instagram_search: ai.Tool<{
         keyword: string;
