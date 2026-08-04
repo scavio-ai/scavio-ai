@@ -4,6 +4,16 @@ Scavio search tools for the [Vercel AI SDK](https://sdk.vercel.ai). Give any AI 
 search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram via the
 [Scavio](https://scavio.dev) API.
 
+**This package exposes a curated subset of the Scavio API**, chosen for agent
+use: 12 tools over 7 platforms. The full surface is 97 billable endpoints across
+ten platforms, adding X, LinkedIn, TikTok Shop and the Google verticals (Maps,
+Shopping, News, Flights, Hotels, Trends, AI Mode). To reach all of them, point
+your agent at the [Scavio MCP server](https://scavio.dev/docs/mcp-server) at
+`mcp.scavio.dev` -- one tool per endpoint, nothing to vendor.
+
+Credits are not uniform: most calls cost 1, YouTube search costs 2 and
+transcript costs 8, and Instagram costs 2 to 10 depending on the endpoint.
+
 > **Amazon changed (breaking).** The upstream provider moved in 2026-07:
 > `domain` is replaced by `country`, a two-letter marketplace code (`us`, `gb`
 > -- the UK is `gb`, not `uk` -- `de`, `jp`, ...), and `sort_by`, `pages`,
