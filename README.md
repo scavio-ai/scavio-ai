@@ -1,18 +1,23 @@
 # @scavio/ai-sdk
 
-Scavio search tools for the [Vercel AI SDK](https://sdk.vercel.ai). Give any AI SDK agent real-time
-search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram via the
-[Scavio](https://scavio.dev) API.
+Scavio search and page-extraction tools for the [Vercel AI SDK](https://sdk.vercel.ai). Give any AI
+SDK agent real-time search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram --
+plus `scavio_extract`, which reads any URL -- via the [Scavio](https://scavio.dev) API.
 
 **This package exposes a curated subset of the Scavio API**, chosen for agent
-use: 12 tools over 7 platforms. The full surface is 97 billable endpoints across
-ten platforms, adding X, LinkedIn, TikTok Shop and the Google verticals (Maps,
-Shopping, News, Flights, Hotels, Trends, AI Mode). To reach all of them, point
-your agent at the [Scavio MCP server](https://scavio.dev/docs/mcp-server) at
-`mcp.scavio.dev` -- one tool per endpoint, nothing to vendor.
+use: 13 tools -- 12 over 7 platforms, plus the core `extract` endpoint, which
+belongs to no platform. The full surface is 195 endpoints across 31 platforms,
+adding X, LinkedIn, TikTok Shop, eBay, Target, Home Depot, Zillow, Redfin,
+Booking, Airbnb, Tripadvisor, Yelp, Indeed, Glassdoor, the App Store, Google
+Play, SEC, Companies House, G2, Capterra, Google Ads, Meta Ad Library, Threads,
+Kuaishou and the Google verticals (Maps, Shopping, News, Flights, Hotels,
+Trends, AI Mode). To reach all of them, point your agent at the
+[Scavio MCP server](https://scavio.dev/docs/mcp-server) at `mcp.scavio.dev` --
+191 tools over every endpoint, nothing to vendor.
 
 Credits are not uniform: most calls cost 1, YouTube search costs 2 and
-transcript costs 8, and Instagram costs 2 to 10 depending on the endpoint.
+transcript costs 8, Instagram costs 2 to 10 depending on the endpoint, and
+`scavio_extract` is priced by the `mode` you ask for (1 / 1 / 2), not per call.
 
 > **Amazon changed (breaking).** The upstream provider moved in 2026-07:
 > `domain` is replaced by `country`, a two-letter marketplace code (`us`, `gb`
@@ -59,6 +64,7 @@ const res2 = await generateText({
 
 | Factory | Tool name | Provider |
 | --- | --- | --- |
+| `scavioExtract` | `scavio_extract` | Read any URL as Markdown / text / HTML, `/api/v1/extract` (1 credit on `normal` and `advanced`, 2 on `ultra`) |
 | `scavioSearch` | `scavio_search` | Google web search, `/api/v2/google` (1 credit) |
 | `scavioYoutubeSearch` | `scavio_youtube_search` | YouTube video search (2 credits) |
 | `scavioYoutubeVideo` | `scavio_youtube_video` | YouTube video details (1 credit) |
@@ -80,12 +86,32 @@ credit card.
 `maxResults` trims the result list in place. Google returns a flat body, so it trims
 `organic_results`; every other endpoint nests its payload under `data`, so those trim inside `data`
 (`data.results`, `data.products`, `data.aweme_list`, `data.users`, ...) and the
-`{ data, response_time, credits_used, credits_remaining }` envelope is preserved.
+`{ data, response_time, credits_used, credits_remaining }` envelope is preserved. `scavioExtract`
+ignores `maxResults`: it returns page content, not a list, so the page comes back whole.
 
-These tools cover the most common surfaces. The full Scavio API - 98 endpoints across Google,
-YouTube, Amazon, Walmart, Reddit, TikTok, TikTok Shop, Instagram, X and LinkedIn - is available
-directly through the [`scavio`](https://www.npmjs.com/package/scavio) SDK or the
-[MCP server](https://scavio.dev/docs).
+### Reading a page
+
+```ts
+const page = await generateText({
+  model: openai("gpt-5.5"),
+  tools: { scavio_extract: scavioExtract() },
+  stopWhen: stepCountIs(3),
+  prompt: "Summarise the pricing page at https://scavio.dev/pricing",
+});
+```
+
+`scavio_extract` takes `url` plus an optional `format` (`markdown` default, `text`, `html`) and
+`mode`. `mode` is the price-bearing param: `normal` is a plain fetch (1 credit), `advanced` renders
+the page in a browser for JS-built sites (1 credit), and `ultra` routes through residential proxies
+for the hardest bot walls (2 credits). Only a successful read is billed - a dead link, a bot wall or
+a timeout costs nothing. See [the extract docs](https://scavio.dev/docs/extract).
+
+These tools cover the most common surfaces. The full Scavio API - 195 endpoints across 31 platforms
+(Google, YouTube, Amazon, Walmart, Reddit, TikTok, TikTok Shop, Instagram, X, LinkedIn, eBay, Target,
+Home Depot, Zillow, Redfin, Booking, Airbnb, Tripadvisor, Yelp, Indeed, Glassdoor, the App Store,
+Google Play, SEC, Companies House, G2, Capterra, Google Ads, Meta Ad Library, Threads and Kuaishou),
+plus `extract` - is available directly through the
+[`scavio`](https://www.npmjs.com/package/scavio) SDK or the [MCP server](https://scavio.dev/docs).
 
 ## License
 

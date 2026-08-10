@@ -9,6 +9,7 @@ const tiktokSearch = vi.fn();
 const instagramSearchUsers = vi.fn();
 const amazonSearch = vi.fn();
 const amazonOffers = vi.fn();
+const extract_ = vi.fn();
 
 vi.mock("scavio", () => ({
   Scavio: class {
@@ -19,6 +20,9 @@ vi.mock("scavio", () => ({
     walmart = { search: walmartSearch };
     tiktok = { searchVideos: tiktokSearch };
     instagram = { searchUsers: instagramSearchUsers };
+    // extract is a TOP-LEVEL method, never a namespace: c.extract({ url }),
+    // never c.extract.extract(). Mocked as a method so the wrong call throws.
+    extract = extract_;
   },
 }));
 
@@ -33,6 +37,7 @@ import {
   scavioTools,
   scavioAmazonSearch,
   scavioAmazonOffers,
+  scavioExtract,
 } from "./index.js";
 
 /**
@@ -244,9 +249,55 @@ describe("@scavio/ai-sdk tools", () => {
     expect(amazonOffers).toHaveBeenCalledWith({ asin: "B09V3KXJPB", country: "gb" });
   });
 
+  // Extract is the one tool that returns page CONTENT rather than a result
+  // list: nothing to trim, and `maxResults` must not touch it.
+  it("scavioExtract sends url/format/mode and returns the page whole", async () => {
+    const body = "x".repeat(50_000);
+    extract_.mockResolvedValue(
+      envelope({
+        url: "https://example.com/pricing",
+        format: "markdown",
+        mode: "normal",
+        content: body,
+        content_length: body.length,
+      }),
+    );
+    const t = scavioExtract({ apiKey: "test", maxResults: 3 });
+    const out = (await t.execute!({ url: "https://example.com/pricing" }, {} as never)) as {
+      data: { content: string; content_length: number };
+      credits_used: number;
+    };
+    // maxResults is meaningless here - the page must survive whole.
+    expect(out.data.content).toHaveLength(50_000);
+    expect(out.data.content_length).toBe(50_000);
+    expect(out.credits_used).toBe(1);
+    expect(extract_).toHaveBeenCalledWith({
+      url: "https://example.com/pricing",
+      format: undefined,
+      mode: undefined,
+    });
+  });
+
+  // mode is the PRICE-BEARING param: normal 1, advanced 1, ultra 2.
+  it("scavioExtract forwards format and mode", async () => {
+    extract_.mockResolvedValue(envelope({ content: "hi", content_length: 2 }, 2));
+    const t = scavioExtract({ apiKey: "test" });
+    const out = (await t.execute!(
+      { url: "https://example.com", format: "text", mode: "ultra" },
+      {} as never,
+    )) as { credits_used: number };
+    expect(extract_).toHaveBeenCalledWith({
+      url: "https://example.com",
+      format: "text",
+      mode: "ultra",
+    });
+    expect(out.credits_used).toBe(2);
+  });
+
   it("scavioTools exposes every tool keyed by name", () => {
     const tools = scavioTools({ apiKey: "test" });
     expect(Object.keys(tools)).toEqual([
+      "scavio_extract",
       "scavio_search",
       "scavio_youtube_search",
       "scavio_youtube_video",
@@ -260,5 +311,6 @@ describe("@scavio/ai-sdk tools", () => {
       "scavio_tiktok_search",
       "scavio_instagram_search",
     ]);
+    expect(Object.keys(tools)).toHaveLength(13);
   });
 });

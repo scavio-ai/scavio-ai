@@ -22,6 +22,7 @@ var index_exports = {};
 __export(index_exports, {
   scavioAmazonOffers: () => scavioAmazonOffers,
   scavioAmazonSearch: () => scavioAmazonSearch,
+  scavioExtract: () => scavioExtract,
   scavioInstagramSearch: () => scavioInstagramSearch,
   scavioRedditSearch: () => scavioRedditSearch,
   scavioSearch: () => scavioSearch,
@@ -56,6 +57,24 @@ function trimData(res, key, max) {
     return { ...res, data: { ...data, [key]: list.slice(0, max) } };
   }
   return res;
+}
+function scavioExtract(config) {
+  const c = client(config);
+  return (0, import_ai.tool)({
+    description: "Read any web page via the Scavio API and get it back as clean Markdown (default), plain text, or raw HTML. Use it on any URL, including one returned by the search tools. Returns `data.content` alongside `data.url`, `data.format`, `data.mode` and `data.content_length`. Cost depends on `mode`: 1 credit on 'normal' and 'advanced', 2 on 'ultra'; a dead link, bot wall or timeout is not billed.",
+    inputSchema: import_zod.z.object({
+      url: import_zod.z.string().describe(
+        "The page to read (1-2048 characters). http(s) only; a bare host is upgraded to https, and loopback, private, link-local and metadata hosts are rejected."
+      ),
+      format: import_zod.z.enum(["html", "markdown", "text"]).optional().describe(
+        "Output format (default 'markdown'): 'markdown' is a readability extraction with page chrome stripped, 'text' is that flattened to plain text, 'html' is the raw page."
+      ),
+      mode: import_zod.z.enum(["normal", "advanced", "ultra"]).optional().describe(
+        "Fetch tier, and the parameter that sets the price: 'normal' (default) is a plain fetch and costs 1 credit, 'advanced' renders the page in a browser for JS-built sites and costs 1, 'ultra' routes through residential proxies for the hardest bot walls and costs 2. Start on 'normal'."
+      )
+    }),
+    execute: async ({ url, format, mode }) => c.extract({ url, format, mode })
+  });
 }
 function scavioSearch(config) {
   const c = client(config);
@@ -234,6 +253,7 @@ function scavioInstagramSearch(config) {
 }
 function scavioTools(config) {
   return {
+    scavio_extract: scavioExtract(config),
     scavio_search: scavioSearch(config),
     scavio_youtube_search: scavioYoutubeSearch(config),
     scavio_youtube_video: scavioYoutubeVideo(config),
@@ -252,6 +272,7 @@ function scavioTools(config) {
 0 && (module.exports = {
   scavioAmazonOffers,
   scavioAmazonSearch,
+  scavioExtract,
   scavioInstagramSearch,
   scavioRedditSearch,
   scavioSearch,

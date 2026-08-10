@@ -1,7 +1,7 @@
 {
   "name": "@scavio/ai-sdk",
-  "version": "0.3.0",
-  "description": "Scavio search tools for the Vercel AI SDK (Google, YouTube, Reddit, Amazon, Walmart, TikTok, Instagram).",
+  "version": "0.4.0",
+  "description": "Scavio search and URL-extraction tools for the Vercel AI SDK (extract any URL, plus Google, YouTube, Reddit, Amazon, Walmart, TikTok, Instagram).",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -32,6 +32,8 @@
     "vercel-ai-sdk",
     "tools",
     "search",
+    "extract",
+    "web-scraping",
     "agents"
   ],
   "license": "MIT",
@@ -48,12 +50,12 @@
     "zod": ">=3"
   },
   "dependencies": {
-    "scavio": "^0.13.0"
+    "scavio": "^0.15.0"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.74",
     "ai": "^6.0.208",
-    "scavio": "^0.13.0",
+    "scavio": "^0.15.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0",

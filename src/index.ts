@@ -6,6 +6,7 @@ export interface ScavioToolConfig extends ScavioConfig {
   /**
    * Max number of items to keep in the tool's result list. Defaults to 10.
    * Trimmed inside `data` on every platform except Google, whose body is flat.
+   * Ignored by `scavioExtract`, which returns page content rather than a list.
    */
   maxResults?: number;
 }
@@ -40,6 +41,45 @@ function trimData(res: Record<string, unknown>, key: string, max: number): Recor
     return { ...res, data: { ...(data as Record<string, unknown>), [key]: list.slice(0, max) } };
   }
   return res;
+}
+
+/**
+ * Read any URL (/api/v1/extract).
+ *
+ * The one tool here that is not tied to a platform, and the only one `maxResults`
+ * does not touch: extract returns page CONTENT, not a result list, so there is
+ * nothing to trim and the body is returned whole. `extract` is a TOP-LEVEL
+ * method on the SDK client - `c.extract({ url })`, never `c.extract.extract()`.
+ *
+ * Credits are a function of `mode`, not a per-call constant: "normal" 1,
+ * "advanced" 1, "ultra" 2. Only a successful read is billed.
+ */
+export function scavioExtract(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description:
+      "Read any web page via the Scavio API and get it back as clean Markdown (default), plain text, or raw HTML. Use it on any URL, including one returned by the search tools. Returns `data.content` alongside `data.url`, `data.format`, `data.mode` and `data.content_length`. Cost depends on `mode`: 1 credit on 'normal' and 'advanced', 2 on 'ultra'; a dead link, bot wall or timeout is not billed.",
+    inputSchema: z.object({
+      url: z
+        .string()
+        .describe(
+          "The page to read (1-2048 characters). http(s) only; a bare host is upgraded to https, and loopback, private, link-local and metadata hosts are rejected.",
+        ),
+      format: z
+        .enum(["html", "markdown", "text"])
+        .optional()
+        .describe(
+          "Output format (default 'markdown'): 'markdown' is a readability extraction with page chrome stripped, 'text' is that flattened to plain text, 'html' is the raw page.",
+        ),
+      mode: z
+        .enum(["normal", "advanced", "ultra"])
+        .optional()
+        .describe(
+          "Fetch tier, and the parameter that sets the price: 'normal' (default) is a plain fetch and costs 1 credit, 'advanced' renders the page in a browser for JS-built sites and costs 1, 'ultra' routes through residential proxies for the hardest bot walls and costs 2. Start on 'normal'.",
+        ),
+    }),
+    execute: async ({ url, format, mode }) => c.extract({ url, format, mode }),
+  });
 }
 
 /** Google web search (/api/v2/google, 1 credit). */
@@ -287,6 +327,7 @@ export function scavioInstagramSearch(config?: ScavioToolConfig) {
  */
 export function scavioTools(config?: ScavioToolConfig) {
   return {
+    scavio_extract: scavioExtract(config),
     scavio_search: scavioSearch(config),
     scavio_youtube_search: scavioYoutubeSearch(config),
     scavio_youtube_video: scavioYoutubeVideo(config),
