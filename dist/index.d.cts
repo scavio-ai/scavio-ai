@@ -8,6 +8,14 @@ interface ScavioToolConfig extends ScavioConfig {
      * Ignored by `scavioExtract`, which returns page content rather than a list.
      */
     maxResults?: number;
+    /**
+     * Add the five website tools (map, crawl, crawl status, batch extract, batch
+     * status) to `scavioTools()`. Off by default: a crawl bills per page. The
+     * individual factories (`scavioCrawlWebsite` and friends) work regardless.
+     */
+    enableCrawl?: boolean;
+    /** Milliseconds between progress polls while a crawl or batch tool waits. Default 3000. */
+    pollIntervalMs?: number;
 }
 /**
  * Read any URL (/api/v1/extract).
@@ -104,11 +112,112 @@ declare function scavioTiktokSearch(config?: ScavioToolConfig): ai.Tool<{
 declare function scavioInstagramSearch(config?: ScavioToolConfig): ai.Tool<{
     keyword: string;
 }, Record<string, unknown>>;
+/** Map a website's URLs (/api/v1/extract/map). 1 credit on 'normal'. */
+declare function scavioMapWebsite(config?: ScavioToolConfig): ai.Tool<{
+    url: string;
+    mode?: "normal" | "advanced" | "ultra" | undefined;
+    limit?: number | undefined;
+    search?: string | undefined;
+    sitemap?: "include" | "only" | "skip" | undefined;
+    include_subdomains?: boolean | undefined;
+    include_paths?: string[] | undefined;
+    exclude_paths?: string[] | undefined;
+    ignore_query_parameters?: boolean | undefined;
+}, Record<string, unknown>>;
+/** Crawl a website (/api/v1/extract/crawl), then wait (bounded) for it. */
+declare function scavioCrawlWebsite(config?: ScavioToolConfig): ai.Tool<{
+    url: string;
+    format?: "html" | "markdown" | "text" | undefined;
+    mode?: "normal" | "advanced" | "ultra" | undefined;
+    limit?: number | undefined;
+    include_content?: boolean | undefined;
+    sitemap?: "include" | "only" | "skip" | undefined;
+    include_paths?: string[] | undefined;
+    exclude_paths?: string[] | undefined;
+    ignore_query_parameters?: boolean | undefined;
+    max_pages?: number | undefined;
+    max_depth?: number | undefined;
+    allow_subdomains?: boolean | undefined;
+    wait_seconds?: number | undefined;
+}, Record<string, unknown>>;
+/** A crawl's progress and page results (GET /api/v1/extract/crawl/{id}). Free. */
+declare function scavioCrawlStatus(config?: ScavioToolConfig): ai.Tool<{
+    id: string;
+    status?: "failed" | "succeeded" | "skipped" | undefined;
+    cursor?: string | undefined;
+    limit?: number | undefined;
+    include_content?: boolean | undefined;
+}, Record<string, unknown>>;
+/** Extract a list of URLs in one job (/api/v1/extract/batch), then wait (bounded). */
+declare function scavioBatchExtract(config?: ScavioToolConfig): ai.Tool<{
+    urls: string[];
+    format?: "html" | "markdown" | "text" | undefined;
+    mode?: "normal" | "advanced" | "ultra" | undefined;
+    limit?: number | undefined;
+    include_content?: boolean | undefined;
+    wait_seconds?: number | undefined;
+}, Record<string, unknown>>;
+/** A batch's progress and page results (GET /api/v1/extract/batch/{id}). Free. */
+declare function scavioBatchStatus(config?: ScavioToolConfig): ai.Tool<{
+    id: string;
+    status?: "failed" | "succeeded" | "skipped" | undefined;
+    cursor?: string | undefined;
+    limit?: number | undefined;
+    include_content?: boolean | undefined;
+}, Record<string, unknown>>;
 /**
  * All Scavio tools as an object keyed by tool name, ready to spread into the
  * `tools` option of `generateText` / `streamText`.
  */
 declare function scavioTools(config?: ScavioToolConfig): {
+    scavio_map_website?: ai.Tool<{
+        url: string;
+        mode?: "normal" | "advanced" | "ultra" | undefined;
+        limit?: number | undefined;
+        search?: string | undefined;
+        sitemap?: "include" | "only" | "skip" | undefined;
+        include_subdomains?: boolean | undefined;
+        include_paths?: string[] | undefined;
+        exclude_paths?: string[] | undefined;
+        ignore_query_parameters?: boolean | undefined;
+    }, Record<string, unknown>> | undefined;
+    scavio_crawl_website?: ai.Tool<{
+        url: string;
+        format?: "html" | "markdown" | "text" | undefined;
+        mode?: "normal" | "advanced" | "ultra" | undefined;
+        limit?: number | undefined;
+        include_content?: boolean | undefined;
+        sitemap?: "include" | "only" | "skip" | undefined;
+        include_paths?: string[] | undefined;
+        exclude_paths?: string[] | undefined;
+        ignore_query_parameters?: boolean | undefined;
+        max_pages?: number | undefined;
+        max_depth?: number | undefined;
+        allow_subdomains?: boolean | undefined;
+        wait_seconds?: number | undefined;
+    }, Record<string, unknown>> | undefined;
+    scavio_crawl_status?: ai.Tool<{
+        id: string;
+        status?: "failed" | "succeeded" | "skipped" | undefined;
+        cursor?: string | undefined;
+        limit?: number | undefined;
+        include_content?: boolean | undefined;
+    }, Record<string, unknown>> | undefined;
+    scavio_batch_extract?: ai.Tool<{
+        urls: string[];
+        format?: "html" | "markdown" | "text" | undefined;
+        mode?: "normal" | "advanced" | "ultra" | undefined;
+        limit?: number | undefined;
+        include_content?: boolean | undefined;
+        wait_seconds?: number | undefined;
+    }, Record<string, unknown>> | undefined;
+    scavio_batch_status?: ai.Tool<{
+        id: string;
+        status?: "failed" | "succeeded" | "skipped" | undefined;
+        cursor?: string | undefined;
+        limit?: number | undefined;
+        include_content?: boolean | undefined;
+    }, Record<string, unknown>> | undefined;
     scavio_extract: ai.Tool<{
         url: string;
         format?: "html" | "markdown" | "text" | undefined;
@@ -170,4 +279,4 @@ declare function scavioTools(config?: ScavioToolConfig): {
     }, Record<string, unknown>>;
 };
 
-export { type ScavioToolConfig, scavioAmazonOffers, scavioAmazonSearch, scavioExtract, scavioInstagramSearch, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeChannel, scavioYoutubeComments, scavioYoutubeSearch, scavioYoutubeTranscript, scavioYoutubeVideo };
+export { type ScavioToolConfig, scavioAmazonOffers, scavioAmazonSearch, scavioBatchExtract, scavioBatchStatus, scavioCrawlStatus, scavioCrawlWebsite, scavioExtract, scavioInstagramSearch, scavioMapWebsite, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeChannel, scavioYoutubeComments, scavioYoutubeSearch, scavioYoutubeTranscript, scavioYoutubeVideo };

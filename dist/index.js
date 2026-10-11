@@ -33,7 +33,7 @@ function scavioExtract(config) {
         "Output format (default 'markdown'): 'markdown' is a readability extraction with page chrome stripped, 'text' is that flattened to plain text, 'html' is the raw page."
       ),
       mode: z.enum(["normal", "advanced", "ultra"]).optional().describe(
-        "Fetch tier, and the parameter that sets the price: 'normal' (default) is a plain fetch and costs 1 credit, 'advanced' renders the page in a browser for JS-built sites and costs 1, 'ultra' routes through residential proxies for the hardest bot walls and costs 2. Start on 'normal'."
+        "Fetch tier, and the parameter that sets the price: 'normal' (default) is a plain fetch and costs 1 credit, 'advanced' renders JavaScript-built pages and costs 1, 'ultra' reaches the hardest pages and costs 2. Start on 'normal'."
       )
     }),
     execute: async ({ url, format, mode }) => c.extract({ url, format, mode })
@@ -214,6 +214,130 @@ function scavioInstagramSearch(config) {
     execute: async ({ keyword }) => trimData(await c.instagram.searchUsers({ keyword }), "users", max)
   });
 }
+var JOB_POLL_INTERVAL_MS = 3e3;
+var JOB_WAIT_DEFAULT_SECONDS = 45;
+var JOB_WAIT_MAX_SECONDS = 300;
+var JOB_RESULTS_DEFAULT_LIMIT = 10;
+var JOB_TERMINAL = /* @__PURE__ */ new Set(["completed", "failed", "cancelled"]);
+var sleep = (ms) => new Promise((resolve) => setTimeout(() => resolve(), ms));
+async function waitForJob(status, id, waitSeconds, pollMs, query) {
+  const deadline = Date.now() + Math.max(0, Math.min(waitSeconds, JOB_WAIT_MAX_SECONDS)) * 1e3;
+  for (; ; ) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await sleep(Math.min(pollMs, remaining));
+    const probe = await status(id, { limit: 1, include_content: false });
+    if (JOB_TERMINAL.has(String(probe?.data?.status))) break;
+  }
+  return await status(id, query);
+}
+async function startAndWait(start, status, input, pollMs) {
+  const created = await start();
+  const id = created?.data?.id;
+  const wait = input.wait_seconds ?? JOB_WAIT_DEFAULT_SECONDS;
+  if (!id || wait <= 0) return created;
+  const query = { limit: input.limit ?? JOB_RESULTS_DEFAULT_LIMIT };
+  if (input.include_content !== void 0) query.include_content = input.include_content;
+  return waitForJob(status, id, wait, pollMs, query);
+}
+var MODE_DESCRIPTION = "Fetch tier, and the parameter that sets the price: 'normal' (default) is the standard fetch, 'advanced' renders JavaScript-built pages, 'ultra' reaches the hardest pages.";
+var PATHS_DESCRIPTION = "Path globs (max 20). '*' matches within one path segment, '**' across segments; a pattern without wildcards matches that path and everything under it. Example: ['/blog/**'].";
+var JOB_PRICE = "Billed per SUCCESSFUL page at Extract's price for the mode: 'normal' and 'advanced' 1 credit, 'ultra' 2. Failed and skipped pages are free, and if the balance runs out the job stops cleanly.";
+var jobFields = {
+  format: z.enum(["html", "markdown", "text"]).optional().describe("Format for each page, as on extract (default 'markdown')."),
+  mode: z.enum(["normal", "advanced", "ultra"]).optional().describe(MODE_DESCRIPTION),
+  wait_seconds: z.number().int().min(0).max(JOB_WAIT_MAX_SECONDS).optional().describe("Seconds to wait for the job to finish before returning, 0-300 (default 45). 0 returns the job id at once. A job still running when the wait ends keeps going; read it later with its status tool."),
+  limit: z.number().int().min(1).max(100).optional().describe("Results per response, 1-100 (default 10, to keep page content inside the context window); page on with next_cursor."),
+  include_content: z.boolean().optional().describe("Set false to list results without their page content (default true).")
+};
+var jobStatusSchema = z.object({
+  id: z.string().describe("Job id returned when the job was started (data.id)."),
+  cursor: z.string().optional().describe("next_cursor from the previous response, to read the next page."),
+  limit: jobFields.limit,
+  status: z.enum(["succeeded", "failed", "skipped"]).optional().describe("Only results with this status."),
+  include_content: jobFields.include_content
+});
+function scavioMapWebsite(config) {
+  const c = client(config);
+  return tool({
+    description: "List a website's page URLs via the Scavio API, gathered from its sitemaps and its start page, deduplicated, filtered by path or search words and limited: `data.links` [{ url, source, lastmod }], `data.total_found`, `data.truncated`. Pages the site's robots.txt disallows are left out. Use it to find the right pages before extracting or crawling. Costs 1 credit on 'normal'; up to 2 on 'advanced' and up to 10 on 'ultra', priced by what the call needed.",
+    inputSchema: z.object({
+      url: z.string().describe("The site to map. A bare host is upgraded to https."),
+      search: z.string().optional().describe("Only return URLs containing every word of this text (case-insensitive)."),
+      limit: z.number().int().min(1).max(5e3).optional().describe("Maximum links to return, 1-5000. Default 1000 (or the plan's limit if lower: Free 500, PAYG 1,000, paid plans 5,000)."),
+      sitemap: z.enum(["include", "only", "skip"]).optional().describe("'include' combines the site's sitemaps with the start page's links (default); 'only' uses sitemaps alone; 'skip' uses page links alone."),
+      include_subdomains: z.boolean().optional().describe("Also return URLs on subdomains of the site (default false)."),
+      include_paths: z.array(z.string()).optional().describe("Keep only URLs matching these. " + PATHS_DESCRIPTION),
+      exclude_paths: z.array(z.string()).optional().describe("Drop URLs matching these. " + PATHS_DESCRIPTION),
+      ignore_query_parameters: z.boolean().optional().describe("Treat URLs that differ only by query string as one URL (default true)."),
+      mode: jobFields.mode
+    }),
+    execute: async (input) => await c.extract.map(input)
+  });
+}
+function scavioCrawlWebsite(config) {
+  const c = client(config);
+  const pollMs = config?.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
+  return tool({
+    description: "Crawl a website from one start URL via the Scavio API: same-site pages are discovered and extracted breadth-first within the page, depth and path limits, each returned as Markdown, text or HTML. Pages the site's robots.txt disallows are skipped. Waits up to wait_seconds (default 45) and returns `data` { id, status, pages, credits_used, results, next_cursor }; if status is still queued or running, call scavio_crawl_status with the id later. " + JOB_PRICE,
+    inputSchema: z.object({
+      url: z.string().describe("Where the crawl starts. Only pages on the same site are crawled."),
+      max_pages: z.number().int().min(1).max(1e4).optional().describe("Maximum pages to fetch. Default 100. Plan limits: Free 10, PAYG 100, Project 500, Bootstrap 2,000, Startup 5,000, Growth 10,000."),
+      max_depth: z.number().int().min(0).max(10).optional().describe("How many links away from the start page to follow, 0-10 (default 3). 0 fetches only the start page."),
+      include_paths: z.array(z.string()).optional().describe("Crawl only paths matching these. " + PATHS_DESCRIPTION),
+      exclude_paths: z.array(z.string()).optional().describe("Skip paths matching these. " + PATHS_DESCRIPTION),
+      allow_subdomains: z.boolean().optional().describe("Also crawl subdomains of the site (default false)."),
+      ignore_query_parameters: z.boolean().optional().describe("Treat URLs that differ only by query string as one page (default true)."),
+      sitemap: z.enum(["include", "skip", "only"]).optional().describe("'include' also starts from the site's sitemap (default); 'skip' follows links only; 'only' fetches sitemap pages without following links."),
+      ...jobFields
+    }),
+    execute: async (input) => {
+      const { wait_seconds, limit, include_content, ...body } = input;
+      return startAndWait(
+        () => c.extract.crawl(body),
+        (id, q) => c.extract.crawlStatus(id, q),
+        { wait_seconds, limit, include_content },
+        pollMs
+      );
+    }
+  });
+}
+function scavioCrawlStatus(config) {
+  const c = client(config);
+  return tool({
+    description: "Read a crawl's progress and its page results by job id via the Scavio API, paged by cursor: `data` { status, stopped_reason, pages, credits_used, results: [{ url, status, content }], next_cursor }. Results are kept for 3 days after the crawl finishes. Free: reading a job costs 0 credits.",
+    inputSchema: jobStatusSchema,
+    execute: async ({ id, limit, ...q }) => await c.extract.crawlStatus(id, { ...q, limit: limit ?? JOB_RESULTS_DEFAULT_LIMIT })
+  });
+}
+function scavioBatchExtract(config) {
+  const c = client(config);
+  const pollMs = config?.pollIntervalMs ?? JOB_POLL_INTERVAL_MS;
+  return tool({
+    description: "Extract a list of URLs (up to 1,000, plan-limited) in one job via the Scavio API, each returned as Markdown, text or HTML exactly like scavio_extract. Waits up to wait_seconds (default 45) and returns `data` { id, status, pages, credits_used, results, next_cursor }; if status is still queued or running, call scavio_batch_status with the id later. " + JOB_PRICE,
+    inputSchema: z.object({
+      urls: z.array(z.string()).min(1).max(1e3).describe("The pages to extract (duplicates removed). Plan limits: Free 10, PAYG 50, Project 100, Bootstrap 500, Startup and Growth 1,000."),
+      ...jobFields
+    }),
+    execute: async (input) => {
+      const { wait_seconds, limit, include_content, ...body } = input;
+      return startAndWait(
+        () => c.extract.batch(body),
+        (id, q) => c.extract.batchStatus(id, q),
+        { wait_seconds, limit, include_content },
+        pollMs
+      );
+    }
+  });
+}
+function scavioBatchStatus(config) {
+  const c = client(config);
+  return tool({
+    description: "Read a batch extract's progress and its page results by job id via the Scavio API, paged by cursor: `data` { status, pages, credits_used, results: [{ url, status, content }], next_cursor }. Results are kept for 3 days after the batch finishes. Free: reading a job costs 0 credits.",
+    inputSchema: jobStatusSchema,
+    execute: async ({ id, limit, ...q }) => await c.extract.batchStatus(id, { ...q, limit: limit ?? JOB_RESULTS_DEFAULT_LIMIT })
+  });
+}
 function scavioTools(config) {
   return {
     scavio_extract: scavioExtract(config),
@@ -228,14 +352,26 @@ function scavioTools(config) {
     scavio_amazon_offers: scavioAmazonOffers(config),
     scavio_walmart_search: scavioWalmartSearch(config),
     scavio_tiktok_search: scavioTiktokSearch(config),
-    scavio_instagram_search: scavioInstagramSearch(config)
+    scavio_instagram_search: scavioInstagramSearch(config),
+    ...config?.enableCrawl ? {
+      scavio_map_website: scavioMapWebsite(config),
+      scavio_crawl_website: scavioCrawlWebsite(config),
+      scavio_crawl_status: scavioCrawlStatus(config),
+      scavio_batch_extract: scavioBatchExtract(config),
+      scavio_batch_status: scavioBatchStatus(config)
+    } : {}
   };
 }
 export {
   scavioAmazonOffers,
   scavioAmazonSearch,
+  scavioBatchExtract,
+  scavioBatchStatus,
+  scavioCrawlStatus,
+  scavioCrawlWebsite,
   scavioExtract,
   scavioInstagramSearch,
+  scavioMapWebsite,
   scavioRedditSearch,
   scavioSearch,
   scavioTiktokSearch,

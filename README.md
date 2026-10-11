@@ -2,11 +2,11 @@
 
 Scavio search and page-extraction tools for the [Vercel AI SDK](https://sdk.vercel.ai). Give any AI
 SDK agent real-time search across Google, YouTube, Reddit, Amazon, Walmart, TikTok, and Instagram --
-plus `scavio_extract`, which reads any URL -- via the [Scavio](https://scavio.dev) API.
+plus `scavio_extract`, which reads any URL, and opt-in tools that map, crawl or batch-extract whole sites -- via the [Scavio](https://scavio.dev) API.
 
 **This package exposes a curated subset of the Scavio API**, chosen for agent
-use: 13 tools -- 12 over 7 platforms, plus the core `extract` endpoint, which
-belongs to no platform. The full surface is 195 endpoints across 31 platforms,
+use: 13 tools by default -- 12 over 7 platforms, plus the core `extract` endpoint, which
+belongs to no platform -- and 5 opt-in website tools (map, crawl, batch) on top. The full surface is 195 endpoints across 31 platforms,
 adding X, LinkedIn, TikTok Shop, eBay, Target, Home Depot, Zillow, Redfin,
 Booking, Airbnb, Tripadvisor, Yelp, Indeed, Glassdoor, the App Store, Google
 Play, SEC, Companies House, G2, Capterra, Google Ads, Meta Ad Library, Threads,
@@ -77,9 +77,14 @@ const res2 = await generateText({
 | `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products (1 credit) |
 | `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos (1 credit) |
 | `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users (10 credits) |
-| `scavioTools` | all of the above | bundle for `tools:` |
+| `scavioMapWebsite` | `scavio_map_website` | A site's page URLs from its sitemaps and start page, `/api/v1/extract/map` (1 credit on `normal`) |
+| `scavioCrawlWebsite` | `scavio_crawl_website` | Crawl a site from one URL, every page as Markdown / text / HTML (per successful page) |
+| `scavioCrawlStatus` | `scavio_crawl_status` | A crawl's progress and page results, cursor-paged (free) |
+| `scavioBatchExtract` | `scavio_batch_extract` | Extract a list of URLs in one job (per successful page) |
+| `scavioBatchStatus` | `scavio_batch_status` | A batch's progress and page results, cursor-paged (free) |
+| `scavioTools` | all of the above (the five website tools only with `enableCrawl: true`) | bundle for `tools:` |
 
-Each factory accepts `{ apiKey?, maxResults?, ...ScavioConfig }`. The key falls back to `SCAVIO_API_KEY`.
+Each factory accepts `{ apiKey?, maxResults?, enableCrawl?, pollIntervalMs?, ...ScavioConfig }`. The key falls back to `SCAVIO_API_KEY`.
 Get a key at [dashboard.scavio.dev](https://dashboard.scavio.dev) - new accounts get 50 free credits, no
 credit card.
 
@@ -101,9 +106,8 @@ const page = await generateText({
 ```
 
 `scavio_extract` takes `url` plus an optional `format` (`markdown` default, `text`, `html`) and
-`mode`. `mode` is the price-bearing param: `normal` is a plain fetch (1 credit), `advanced` renders
-the page in a browser for JS-built sites (1 credit), and `ultra` routes through residential proxies
-for the hardest bot walls (2 credits). Only a successful read is billed - a dead link, a bot wall or
+`mode`. `mode` is the price-bearing param: `normal` is the standard fetch (1 credit), `advanced`
+renders JavaScript-built pages (1 credit), and `ultra` reaches the hardest pages (2 credits). Only a successful read is billed - a dead link, a bot wall or
 a timeout costs nothing. See [the extract docs](https://scavio.dev/docs/extract).
 
 These tools cover the most common surfaces. The full Scavio API - 195 endpoints across 31 platforms
@@ -112,6 +116,61 @@ Home Depot, Zillow, Redfin, Booking, Airbnb, Tripadvisor, Yelp, Indeed, Glassdoo
 Google Play, SEC, Companies House, G2, Capterra, Google Ads, Meta Ad Library, Threads and Kuaishou),
 plus `extract` - is available directly through the
 [`scavio`](https://www.npmjs.com/package/scavio) SDK or the [MCP server](https://scavio.dev/docs).
+
+## Map, crawl and batch
+
+Five opt-in tools for whole sites: `scavioTools()` adds them with
+`enableCrawl: true` (off by default, because a crawl bills per page), and each
+factory works on its own:
+
+| Tool | What it does | Credits |
+|---|---|---|
+| `scavio_map_website` | List a site's page URLs from its sitemaps and start page, deduplicated and filtered by path or search words | 1 (normal mode; advanced up to 2, ultra up to 10) |
+| `scavio_crawl_website` | Crawl a site from one URL; every same-site page as Markdown, text or HTML | per successful page |
+| `scavio_crawl_status` | A crawl's progress and page results, cursor-paged | free |
+| `scavio_batch_extract` | Extract a list of URLs (up to 1,000, plan-limited) in one job | per successful page |
+| `scavio_batch_status` | A batch's progress and page results, cursor-paged | free |
+
+Map answers in one call. Crawl and batch run as background jobs: the start tool
+posts the job and then **waits up to `wait_seconds` (default 45, max 300)** for
+it to finish, returning the job's status with its first page of results (10 by
+default, `limit` up to 100) either way. A job still `queued` or `running` when
+the wait ends keeps going server-side: read the rest later with the matching
+status tool, the returned `data.id` and `next_cursor`. That keeps an agent turn
+bounded while a large crawl (up to 6 hours) runs on.
+
+```ts
+import { scavioTools, scavioCrawlWebsite } from "@scavio/ai-sdk";
+
+// All tools plus the five website tools:
+const tools = scavioTools({ enableCrawl: true });
+
+// Or just the crawler:
+const res = await generateText({
+  model: openai("gpt-5.5"),
+  tools: { scavio_crawl_website: scavioCrawlWebsite() },
+  stopWhen: stepCountIs(3),
+  prompt: "Crawl https://hono.dev/docs (25 pages max) and list its middleware guides",
+});
+// The tool returns { data: { id, status: "completed" | "running", pages, credits_used, results, next_cursor } }.
+```
+
+`pollIntervalMs` (default 3000) sets how often a waiting tool checks its job.
+
+**Pricing.** Crawl and batch bill **per successful page** at Extract's price for
+the mode: `normal` (the standard fetch) and `advanced` (renders JavaScript-built
+pages) 1 credit, `ultra` (the hardest pages) 2. Failed and skipped pages are
+free, and if your balance runs out the job stops cleanly with
+`stopped_reason: "insufficient_credits"`. Reading a job is free. Crawl and map
+obey the site's robots.txt, and results are kept for 3 days.
+
+**Plan limits** (pages per crawl / active jobs / URLs per batch): Free 10/1/10,
+PAYG 100/1/50, Project 500/2/100, Bootstrap 2,000/3/500, Startup 5,000/5/1,000,
+Growth 10,000/10/1,000.
+
+Cancellation, webhooks (signed `Scavio-Signature`) and idempotency keys exist in
+the `scavio` SDK (`extract.cancelCrawl`, `webhook_url`, `idempotencyKey`) and the
+[REST API](https://scavio.dev/docs/extract), but are deliberately not agent tools.
 
 ## License
 

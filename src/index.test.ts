@@ -10,6 +10,11 @@ const instagramSearchUsers = vi.fn();
 const amazonSearch = vi.fn();
 const amazonOffers = vi.fn();
 const extract_ = vi.fn();
+const extractMap = vi.fn();
+const extractCrawl = vi.fn();
+const extractCrawlStatus = vi.fn();
+const extractBatch = vi.fn();
+const extractBatchStatus = vi.fn();
 
 vi.mock("scavio", () => ({
   Scavio: class {
@@ -20,9 +25,15 @@ vi.mock("scavio", () => ({
     walmart = { search: walmartSearch };
     tiktok = { searchVideos: tiktokSearch };
     instagram = { searchUsers: instagramSearchUsers };
-    // extract is a TOP-LEVEL method, never a namespace: c.extract({ url }),
-    // never c.extract.extract(). Mocked as a method so the wrong call throws.
-    extract = extract_;
+    // extract is a CALLABLE namespace (scavio >= 0.23): c.extract({ url }) reads
+    // one page, never c.extract.extract(); map/crawl/batch hang off it.
+    extract = Object.assign(extract_, {
+      map: extractMap,
+      crawl: extractCrawl,
+      crawlStatus: extractCrawlStatus,
+      batch: extractBatch,
+      batchStatus: extractBatchStatus,
+    });
   },
 }));
 
@@ -38,6 +49,11 @@ import {
   scavioAmazonSearch,
   scavioAmazonOffers,
   scavioExtract,
+  scavioMapWebsite,
+  scavioCrawlWebsite,
+  scavioCrawlStatus,
+  scavioBatchExtract,
+  scavioBatchStatus,
 } from "./index.js";
 
 /**
@@ -312,5 +328,118 @@ describe("@scavio/ai-sdk tools", () => {
       "scavio_instagram_search",
     ]);
     expect(Object.keys(tools)).toHaveLength(13);
+  });
+
+  it("scavioTools adds the five website tools only with enableCrawl", () => {
+    const tools = scavioTools({ apiKey: "test", enableCrawl: true });
+    expect(Object.keys(tools)).toHaveLength(18);
+    expect(Object.keys(tools).slice(13)).toEqual([
+      "scavio_map_website",
+      "scavio_crawl_website",
+      "scavio_crawl_status",
+      "scavio_batch_extract",
+      "scavio_batch_status",
+    ]);
+  });
+});
+
+describe("website map, crawl and batch", () => {
+  const JOB = "crawl_01a12d21";
+  const created = (id = JOB) => ({ data: { id, status: "queued" }, credits_used: 0 });
+  const status = (s: string, id = JOB) => ({ data: { id, status: s, results: [{ url: "https://hono.dev/docs" }], next_cursor: null } });
+  const run = (t: { execute?: unknown }, input: Record<string, unknown>) =>
+    (t.execute as (i: unknown, o: unknown) => Promise<Record<string, any>>)(input, {});
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("map forwards its body to extract.map", async () => {
+    extractMap.mockResolvedValue({ data: { links: [] }, credits_used: 1 });
+    await run(scavioMapWebsite({ apiKey: "test" }), { url: "scavio.dev", limit: 5, include_paths: ["/blog/**"] });
+    expect(extractMap).toHaveBeenCalledWith({ url: "scavio.dev", limit: 5, include_paths: ["/blog/**"] });
+  });
+
+  it("crawl with wait_seconds 0 returns the 202 without polling", async () => {
+    extractCrawl.mockResolvedValue(created());
+    const out = await run(scavioCrawlWebsite({ apiKey: "test" }), { url: "https://hono.dev/docs", wait_seconds: 0 });
+    expect(out.data.id).toBe(JOB);
+    expect(extractCrawl).toHaveBeenCalledWith({ url: "https://hono.dev/docs" });
+    expect(extractCrawlStatus).not.toHaveBeenCalled();
+  });
+
+  it("crawl waits until completed, then reads the caller's results page", async () => {
+    extractCrawl.mockResolvedValue(created());
+    extractCrawlStatus
+      .mockResolvedValueOnce(status("running"))
+      .mockResolvedValueOnce(status("completed"))
+      .mockResolvedValueOnce(status("completed"));
+    const out = await run(scavioCrawlWebsite({ apiKey: "test", pollIntervalMs: 1 }), {
+      url: "https://hono.dev/docs",
+      max_pages: 3,
+      limit: 7,
+    });
+    expect(out.data.status).toBe("completed");
+    expect(extractCrawl).toHaveBeenCalledWith({ url: "https://hono.dev/docs", max_pages: 3 });
+    expect(extractCrawlStatus.mock.calls).toEqual([
+      [JOB, { limit: 1, include_content: false }],
+      [JOB, { limit: 1, include_content: false }],
+      [JOB, { limit: 7 }],
+    ]);
+  });
+
+  it("crawl still running when the wait ends returns its id", async () => {
+    vi.useFakeTimers();
+    try {
+      extractCrawl.mockResolvedValue(created());
+      extractCrawlStatus.mockResolvedValue(status("running"));
+      const pending = run(scavioCrawlWebsite({ apiKey: "test" }), { url: "https://hono.dev/docs", wait_seconds: 10 });
+      await vi.advanceTimersByTimeAsync(11_000);
+      const out = await pending;
+      expect(out.data.status).toBe("running");
+      expect(out.data.id).toBe(JOB);
+      // 3 s polls inside a 10 s wait: probes at 3, 6, 9 and 10 s, then the final read.
+      expect(extractCrawlStatus).toHaveBeenCalledTimes(5);
+      expect(extractCrawlStatus).toHaveBeenLastCalledWith(JOB, { limit: 10 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("crawl status passes the query through with a default limit", async () => {
+    extractCrawlStatus.mockResolvedValue(status("completed"));
+    await run(scavioCrawlStatus({ apiKey: "test" }), { id: JOB, cursor: "25", include_content: false });
+    expect(extractCrawlStatus).toHaveBeenCalledWith(JOB, { cursor: "25", include_content: false, limit: 10 });
+  });
+
+  it("batch posts urls and polls the batch job", async () => {
+    extractBatch.mockResolvedValue(created("batch_1"));
+    extractBatchStatus.mockResolvedValue(status("completed", "batch_1"));
+    const out = await run(scavioBatchExtract({ apiKey: "test", pollIntervalMs: 1 }), {
+      urls: ["https://example.com/"],
+      mode: "normal",
+    });
+    expect(extractBatch).toHaveBeenCalledWith({ urls: ["https://example.com/"], mode: "normal" });
+    expect(extractBatchStatus).toHaveBeenLastCalledWith("batch_1", { limit: 10 });
+    expect(out.data.id).toBe("batch_1");
+  });
+
+  it("batch status reads the batch job", async () => {
+    extractBatchStatus.mockResolvedValue(status("running", "batch_1"));
+    await run(scavioBatchStatus({ apiKey: "test" }), { id: "batch_1" });
+    expect(extractBatchStatus).toHaveBeenCalledWith("batch_1", { limit: 10 });
+  });
+
+  it("descriptions state the price and never the fetch method", () => {
+    const tools = scavioTools({ apiKey: "test", enableCrawl: true });
+    for (const [name, t] of Object.entries(tools)) {
+      const text = String((t as { description?: string }).description).toLowerCase();
+      if (name.includes("website") || name.includes("batch") || name.includes("crawl")) {
+        expect(text, name).toMatch(/credit/);
+      }
+      for (const word of ["proxy", "proxies", "residential", "datacenter", "headless", "browser"]) {
+        expect(text.includes(word), `${name}: ${word}`).toBe(false);
+      }
+    }
   });
 });
