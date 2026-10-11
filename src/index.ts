@@ -156,12 +156,12 @@ export function scavioYoutubeVideo(config?: ScavioToolConfig) {
   });
 }
 
-/** YouTube video transcript / subtitles (8 credits). */
+/** YouTube video transcript / subtitles (5 credits). */
 export function scavioYoutubeTranscript(config?: ScavioToolConfig) {
   const c = client(config);
   return tool({
     description:
-      "Fetch a YouTube video's transcript or timed subtitles via the Scavio API (8 credits).",
+      "Fetch a YouTube video's transcript or timed subtitles via the Scavio API (5 credits).",
     inputSchema: z.object({
       video_id: z.string().describe("YouTube video id or a full watch URL."),
       language: z.string().optional().describe("Transcript language code (default 'en')."),

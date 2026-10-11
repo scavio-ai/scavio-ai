@@ -16,7 +16,7 @@ Trends, AI Mode). To reach all of them, point your agent at the
 191 tools over every endpoint, nothing to vendor.
 
 Credits are not uniform: most calls cost 1, YouTube search costs 2 and
-transcript costs 8, Instagram costs 2 to 10 depending on the endpoint, and
+transcript costs 5, Instagram costs 2 to 10 depending on the endpoint, and
 `scavio_extract` is priced by the `mode` you ask for (1 / 1 / 2), not per call.
 
 > **Amazon changed (breaking).** The upstream provider moved in 2026-07:
@@ -68,7 +68,7 @@ const res2 = await generateText({
 | `scavioSearch` | `scavio_search` | Google web search, `/api/v2/google` (1 credit) |
 | `scavioYoutubeSearch` | `scavio_youtube_search` | YouTube video search (2 credits) |
 | `scavioYoutubeVideo` | `scavio_youtube_video` | YouTube video details (1 credit) |
-| `scavioYoutubeTranscript` | `scavio_youtube_transcript` | YouTube transcript / subtitles (8 credits) |
+| `scavioYoutubeTranscript` | `scavio_youtube_transcript` | YouTube transcript / subtitles (5 credits) |
 | `scavioYoutubeComments` | `scavio_youtube_comments` | YouTube video comments (1 credit) |
 | `scavioYoutubeChannel` | `scavio_youtube_channel` | YouTube channel details (1 credit) |
 | `scavioRedditSearch` | `scavio_reddit_search` | Reddit posts (1 credit) |

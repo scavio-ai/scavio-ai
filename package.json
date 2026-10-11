@@ -1,6 +1,6 @@
 {
   "name": "@scavio/ai-sdk",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Scavio search, URL-extraction and website crawl tools for the Vercel AI SDK (extract any URL, map, crawl and batch-extract sites, plus Google, YouTube, Reddit, Amazon, Walmart, TikTok, Instagram).",
   "type": "module",
   "main": "./dist/index.cjs",
