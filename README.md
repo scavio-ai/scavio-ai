@@ -20,7 +20,7 @@ transcript costs 5, Instagram costs 1 or 2 depending on the endpoint (up to 10
 when a request needs extra work), and
 `scavio_extract` is priced by the `mode` you ask for (1 / 1 / 2), not per call.
 
-> **Amazon changed (breaking).** The upstream provider moved in 2026-07:
+> **Amazon changed (breaking).** The Amazon endpoint changed in 2026-07:
 > `domain` is replaced by `country`, a two-letter marketplace code (`us`, `gb`
 > -- the UK is `gb`, not `uk` -- `de`, `jp`, ...), and `sort_by`, `pages`,
 > `category_id`, `merchant_id`, `language`, `currency`, `device`, `zip_code`

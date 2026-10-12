@@ -229,7 +229,7 @@ export function scavioRedditSearch(config?: ScavioToolConfig) {
  * Amazon product search.
  *
  * `domain` was dropped in favour of `country`, a two-letter marketplace code -
- * the upstream provider changed in 2026-07 and no longer takes a domain
+ * the Amazon endpoint changed in 2026-07 and no longer takes a domain
  * suffix. It still works on the wire as a deprecated alias, but a model should
  * only ever see one spelling of a param.
  */
