@@ -55,7 +55,7 @@ declare function scavioYoutubeSearch(config?: ScavioToolConfig): ai.Tool<{
 declare function scavioYoutubeVideo(config?: ScavioToolConfig): ai.Tool<{
     video_id: string;
 }, Record<string, unknown>>;
-/** YouTube video transcript / subtitles (8 credits). */
+/** YouTube video transcript / subtitles (5 credits). */
 declare function scavioYoutubeTranscript(config?: ScavioToolConfig): ai.Tool<{
     video_id: string;
     format?: "text" | "srt" | undefined;

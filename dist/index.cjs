@@ -138,7 +138,7 @@ function scavioYoutubeVideo(config) {
 function scavioYoutubeTranscript(config) {
   const c = client(config);
   return (0, import_ai.tool)({
-    description: "Fetch a YouTube video's transcript or timed subtitles via the Scavio API (8 credits).",
+    description: "Fetch a YouTube video's transcript or timed subtitles via the Scavio API (5 credits).",
     inputSchema: import_zod.z.object({
       video_id: import_zod.z.string().describe("YouTube video id or a full watch URL."),
       language: import_zod.z.string().optional().describe("Transcript language code (default 'en')."),
@@ -249,7 +249,7 @@ function scavioInstagramSearch(config) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return (0, import_ai.tool)({
-    description: "Search Instagram for users by keyword via the Scavio API (10 credits). Users come back under `data.users`.",
+    description: "Search Instagram for users by keyword via the Scavio API (2 credits). Users come back under `data.users`.",
     inputSchema: import_zod.z.object({
       keyword: import_zod.z.string().describe("The search keyword.")
     }),

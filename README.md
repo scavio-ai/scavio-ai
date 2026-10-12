@@ -16,7 +16,8 @@ Trends, AI Mode). To reach all of them, point your agent at the
 191 tools over every endpoint, nothing to vendor.
 
 Credits are not uniform: most calls cost 1, YouTube search costs 2 and
-transcript costs 5, Instagram costs 2 to 10 depending on the endpoint, and
+transcript costs 5, Instagram costs 1 or 2 depending on the endpoint (up to 10
+when a request needs extra work), and
 `scavio_extract` is priced by the `mode` you ask for (1 / 1 / 2), not per call.
 
 > **Amazon changed (breaking).** The upstream provider moved in 2026-07:
@@ -76,7 +77,7 @@ const res2 = await generateText({
 | `scavioAmazonOffers` | `scavio_amazon_offers` | Amazon seller offers for one ASIN (1 credit) |
 | `scavioWalmartSearch` | `scavio_walmart_search` | Walmart products (1 credit) |
 | `scavioTiktokSearch` | `scavio_tiktok_search` | TikTok videos (1 credit) |
-| `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users (10 credits) |
+| `scavioInstagramSearch` | `scavio_instagram_search` | Instagram users (2 credits) |
 | `scavioMapWebsite` | `scavio_map_website` | A site's page URLs from its sitemaps and start page, `/api/v1/extract/map` (1 credit on `normal`) |
 | `scavioCrawlWebsite` | `scavio_crawl_website` | Crawl a site from one URL, every page as Markdown / text / HTML (per successful page) |
 | `scavioCrawlStatus` | `scavio_crawl_status` | A crawl's progress and page results, cursor-paged (free) |

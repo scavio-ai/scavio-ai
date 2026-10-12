@@ -321,7 +321,7 @@ export function scavioInstagramSearch(config?: ScavioToolConfig) {
   const max = config?.maxResults ?? 10;
   return tool({
     description:
-      "Search Instagram for users by keyword via the Scavio API (10 credits). Users come back under `data.users`.",
+      "Search Instagram for users by keyword via the Scavio API (2 credits). Users come back under `data.users`.",
     inputSchema: z.object({
       keyword: z.string().describe("The search keyword."),
     }),
