@@ -530,6 +530,77 @@ export function scavioBatchStatus(config?: ScavioToolConfig) {
   });
 }
 
+/** HEB grocery product search. */
+export function scavioHebSearch(config?: ScavioToolConfig) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search HEB grocery products via the Scavio API: price, sale status, unit price, UPC, stock, EBT/SNAP eligibility. Products come back under `data.products`.",
+    inputSchema: z.object({
+      query: z.string().describe("Search keywords (1-200 characters)."),
+      page: z.number().optional().describe("Results page, 1-based."),
+      page_size: z.number().optional().describe("Results per page, 1-60. Default 30."),
+    }),
+    execute: async (input) => trimData(await c.heb.search(input), "products", max),
+  });
+}
+
+/** HEB product detail. */
+export function scavioHebProduct(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description: "Full HEB product detail via the Scavio API: nutrition, ingredients, images, coupons, EBT/SNAP eligibility.",
+    inputSchema: z.object({
+      product_url: z.string().optional().describe("Full or relative product URL from heb.com. Preferred."),
+      product_id: z.string().optional().describe("HEB product id. Requires slug."),
+      slug: z.string().optional().describe("Product slug. Required with product_id."),
+    }),
+    execute: async (input) => (await c.heb.product(input)) as Record<string, unknown>,
+  });
+}
+
+/** HEB store locator. */
+export function scavioHebStores(config?: ScavioToolConfig) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Find HEB stores near a ZIP code or city via the Scavio API. Stores come back under `data.stores`.",
+    inputSchema: z.object({
+      zip: z.string().optional().describe("5-digit US ZIP code."),
+      city: z.string().optional().describe("City name. Pass zip or city."),
+    }),
+    execute: async (input) => trimData(await c.heb.stores(input), "stores", max),
+  });
+}
+
+/** Kroger grocery product search. */
+export function scavioKrogerSearch(config?: ScavioToolConfig) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search Kroger grocery products via the Scavio API: price, promo deals, UPC, stock, SNAP eligibility, dietary info. Kroger operates Kroger, Ralphs, Fred Meyer, Harris Teeter, King Soopers and Fry's. Products come back under `data.products`.",
+    inputSchema: z.object({
+      query: z.string().describe("Search keywords (1-200 characters)."),
+      page: z.number().optional().describe("Results page, 1-based."),
+    }),
+    execute: async (input) => trimData(await c.kroger.search(input), "products", max),
+  });
+}
+
+/** Kroger product detail. */
+export function scavioKrogerProduct(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description: "Full Kroger product detail via the Scavio API: nutrition, allergens, ingredients, images, rating, dietary flags, SNAP eligibility.",
+    inputSchema: z.object({
+      product_url: z.string().optional().describe("Full or relative product URL from kroger.com. Preferred."),
+      upc: z.string().optional().describe("Kroger product UPC."),
+      slug: z.string().optional().describe("Product slug. Optional with upc."),
+    }),
+    execute: async (input) => (await c.kroger.product(input)) as Record<string, unknown>,
+  });
+}
+
 /**
  * All Scavio tools as an object keyed by tool name, ready to spread into the
  * `tools` option of `generateText` / `streamText`.
@@ -549,6 +620,11 @@ export function scavioTools(config?: ScavioToolConfig) {
     scavio_walmart_search: scavioWalmartSearch(config),
     scavio_tiktok_search: scavioTiktokSearch(config),
     scavio_instagram_search: scavioInstagramSearch(config),
+    scavio_heb_search: scavioHebSearch(config),
+    scavio_heb_product: scavioHebProduct(config),
+    scavio_heb_stores: scavioHebStores(config),
+    scavio_kroger_search: scavioKrogerSearch(config),
+    scavio_kroger_product: scavioKrogerProduct(config),
     ...(config?.enableCrawl
       ? {
           scavio_map_website: scavioMapWebsite(config),
