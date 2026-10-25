@@ -601,6 +601,35 @@ export function scavioKrogerProduct(config?: ScavioToolConfig) {
   });
 }
 
+/** Decathlon product search across 7 country domains. */
+export function scavioDecathlonSearch(config?: ScavioToolConfig) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search Decathlon products by keyword via the Scavio API across 7 country domains (FR, ES, IT, IN, UK, PT, NET). Returns product name, brand, price (cents), currency, availability, rating, review count and image. Products come back under `data.products`.",
+    inputSchema: z.object({
+      query: z.string().describe("Search keywords (1-200 characters)."),
+      country: z.enum(["fr", "es", "it", "in", "uk", "pt", "net"]).describe("Country domain."),
+      page: z.number().optional().describe("Results page, 1-based (1-50)."),
+    }),
+    execute: async (input) => trimData(await c.decathlon.search(input), "products", max),
+  });
+}
+
+/** Decathlon product detail. */
+export function scavioDecathlonProduct(config?: ScavioToolConfig) {
+  const c = client(config);
+  return tool({
+    description: "Full Decathlon product detail via the Scavio API: description, images, SKU, GTIN, color, price (cents), list price, availability, offers/variants, rating, review count, category and breadcrumbs.",
+    inputSchema: z.object({
+      product_url: z.string().optional().describe("Full or relative product URL from any Decathlon domain. Preferred."),
+      product_id: z.string().optional().describe("Decathlon numeric product ID."),
+      country: z.enum(["fr", "es", "it", "in", "uk", "pt", "net"]).describe("Country domain."),
+    }),
+    execute: async (input) => (await c.decathlon.product(input)) as Record<string, unknown>,
+  });
+}
+
 /**
  * All Scavio tools as an object keyed by tool name, ready to spread into the
  * `tools` option of `generateText` / `streamText`.
@@ -625,6 +654,8 @@ export function scavioTools(config?: ScavioToolConfig) {
     scavio_heb_stores: scavioHebStores(config),
     scavio_kroger_search: scavioKrogerSearch(config),
     scavio_kroger_product: scavioKrogerProduct(config),
+    scavio_decathlon_search: scavioDecathlonSearch(config),
+    scavio_decathlon_product: scavioDecathlonProduct(config),
     ...(config?.enableCrawl
       ? {
           scavio_map_website: scavioMapWebsite(config),
