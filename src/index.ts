@@ -535,11 +535,12 @@ export function scavioHebSearch(config?: ScavioToolConfig) {
   const c = client(config);
   const max = config?.maxResults ?? 10;
   return tool({
-    description: "Search HEB grocery products via the Scavio API: price, sale status, unit price, UPC, stock, EBT/SNAP eligibility. Products come back under `data.products`.",
+    description: "Search HEB grocery products via the Scavio API: price, sale status, unit price, UPC, stock, EBT/SNAP eligibility. Pass store_id for one store's prices, stock and assortment. Products come back under `data.products`.",
     inputSchema: z.object({
       query: z.string().describe("Search keywords (1-200 characters)."),
       page: z.number().optional().describe("Results page, 1-based."),
-      page_size: z.number().optional().describe("Results per page, 1-60. Default 30."),
+      page_size: z.number().optional().describe("Results per page, 1-60. Defaults to 60."),
+      store_id: z.string().optional().describe("HEB store number from the HEB stores tool (store_number), e.g. '441'. Prices, stock, aisle location and assortment come from that store; the store used is echoed in data.store {store_id, name}. US only. Omit for HEB's default store."),
     }),
     execute: async (input) => trimData(await c.heb.search(input), "products", max),
   });
@@ -549,11 +550,12 @@ export function scavioHebSearch(config?: ScavioToolConfig) {
 export function scavioHebProduct(config?: ScavioToolConfig) {
   const c = client(config);
   return tool({
-    description: "Full HEB product detail via the Scavio API: nutrition, ingredients, images, coupons, EBT/SNAP eligibility.",
+    description: "Full HEB product detail via the Scavio API: nutrition, ingredients, images, coupons, EBT/SNAP eligibility. With store_id, price, stock and aisle are for that store and product_id alone works.",
     inputSchema: z.object({
       product_url: z.string().optional().describe("Full or relative product URL from heb.com. Preferred."),
-      product_id: z.string().optional().describe("HEB product id. Requires slug."),
-      slug: z.string().optional().describe("Product slug. Required with product_id."),
+      product_id: z.string().optional().describe("HEB product id. Needs slug, unless store_id is set (then product_id alone works)."),
+      slug: z.string().optional().describe("Product slug. Required with product_id unless store_id is set."),
+      store_id: z.string().optional().describe("HEB store number from the HEB stores tool (store_number), e.g. '441'. Prices, stock, aisle location and assortment come from that store; the store used is echoed in data.store {store_id, name}. US only. Omit for HEB's default store."),
     }),
     execute: async (input) => (await c.heb.product(input)) as Record<string, unknown>,
   });

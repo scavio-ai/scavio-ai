@@ -338,6 +338,94 @@ function scavioBatchStatus(config) {
     execute: async ({ id, limit, ...q }) => await c.extract.batchStatus(id, { ...q, limit: limit ?? JOB_RESULTS_DEFAULT_LIMIT })
   });
 }
+function scavioHebSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search HEB grocery products via the Scavio API: price, sale status, unit price, UPC, stock, EBT/SNAP eligibility. Pass store_id for one store's prices, stock and assortment. Products come back under `data.products`.",
+    inputSchema: z.object({
+      query: z.string().describe("Search keywords (1-200 characters)."),
+      page: z.number().optional().describe("Results page, 1-based."),
+      page_size: z.number().optional().describe("Results per page, 1-60. Defaults to 60."),
+      store_id: z.string().optional().describe("HEB store number from the HEB stores tool (store_number), e.g. '441'. Prices, stock, aisle location and assortment come from that store; the store used is echoed in data.store {store_id, name}. US only. Omit for HEB's default store.")
+    }),
+    execute: async (input) => trimData(await c.heb.search(input), "products", max)
+  });
+}
+function scavioHebProduct(config) {
+  const c = client(config);
+  return tool({
+    description: "Full HEB product detail via the Scavio API: nutrition, ingredients, images, coupons, EBT/SNAP eligibility. With store_id, price, stock and aisle are for that store and product_id alone works.",
+    inputSchema: z.object({
+      product_url: z.string().optional().describe("Full or relative product URL from heb.com. Preferred."),
+      product_id: z.string().optional().describe("HEB product id. Needs slug, unless store_id is set (then product_id alone works)."),
+      slug: z.string().optional().describe("Product slug. Required with product_id unless store_id is set."),
+      store_id: z.string().optional().describe("HEB store number from the HEB stores tool (store_number), e.g. '441'. Prices, stock, aisle location and assortment come from that store; the store used is echoed in data.store {store_id, name}. US only. Omit for HEB's default store.")
+    }),
+    execute: async (input) => await c.heb.product(input)
+  });
+}
+function scavioHebStores(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Find HEB stores near a ZIP code or city via the Scavio API. Stores come back under `data.stores`.",
+    inputSchema: z.object({
+      zip: z.string().optional().describe("5-digit US ZIP code."),
+      city: z.string().optional().describe("City name. Pass zip or city.")
+    }),
+    execute: async (input) => trimData(await c.heb.stores(input), "stores", max)
+  });
+}
+function scavioKrogerSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search Kroger grocery products via the Scavio API: price, promo deals, UPC, stock, SNAP eligibility, dietary info. Kroger operates Kroger, Ralphs, Fred Meyer, Harris Teeter, King Soopers and Fry's. Products come back under `data.products`.",
+    inputSchema: z.object({
+      query: z.string().describe("Search keywords (1-200 characters)."),
+      page: z.number().optional().describe("Results page, 1-based.")
+    }),
+    execute: async (input) => trimData(await c.kroger.search(input), "products", max)
+  });
+}
+function scavioKrogerProduct(config) {
+  const c = client(config);
+  return tool({
+    description: "Full Kroger product detail via the Scavio API: nutrition, allergens, ingredients, images, rating, dietary flags, SNAP eligibility.",
+    inputSchema: z.object({
+      product_url: z.string().optional().describe("Full or relative product URL from kroger.com. Preferred."),
+      upc: z.string().optional().describe("Kroger product UPC."),
+      slug: z.string().optional().describe("Product slug. Optional with upc.")
+    }),
+    execute: async (input) => await c.kroger.product(input)
+  });
+}
+function scavioDecathlonSearch(config) {
+  const c = client(config);
+  const max = config?.maxResults ?? 10;
+  return tool({
+    description: "Search Decathlon products by keyword via the Scavio API across 7 country domains (FR, ES, IT, IN, UK, PT, NET). Returns product name, brand, price (cents), currency, availability, rating, review count and image. Products come back under `data.products`.",
+    inputSchema: z.object({
+      query: z.string().describe("Search keywords (1-200 characters)."),
+      country: z.enum(["fr", "es", "it", "in", "uk", "pt", "net"]).describe("Country domain."),
+      page: z.number().optional().describe("Results page, 1-based (1-50).")
+    }),
+    execute: async (input) => trimData(await c.decathlon.search(input), "products", max)
+  });
+}
+function scavioDecathlonProduct(config) {
+  const c = client(config);
+  return tool({
+    description: "Full Decathlon product detail via the Scavio API: description, images, SKU, GTIN, color, price (cents), list price, availability, offers/variants, rating, review count, category and breadcrumbs.",
+    inputSchema: z.object({
+      product_url: z.string().optional().describe("Full or relative product URL from any Decathlon domain. Preferred."),
+      product_id: z.string().optional().describe("Decathlon numeric product ID."),
+      country: z.enum(["fr", "es", "it", "in", "uk", "pt", "net"]).describe("Country domain.")
+    }),
+    execute: async (input) => await c.decathlon.product(input)
+  });
+}
 function scavioTools(config) {
   return {
     scavio_extract: scavioExtract(config),
@@ -353,6 +441,13 @@ function scavioTools(config) {
     scavio_walmart_search: scavioWalmartSearch(config),
     scavio_tiktok_search: scavioTiktokSearch(config),
     scavio_instagram_search: scavioInstagramSearch(config),
+    scavio_heb_search: scavioHebSearch(config),
+    scavio_heb_product: scavioHebProduct(config),
+    scavio_heb_stores: scavioHebStores(config),
+    scavio_kroger_search: scavioKrogerSearch(config),
+    scavio_kroger_product: scavioKrogerProduct(config),
+    scavio_decathlon_search: scavioDecathlonSearch(config),
+    scavio_decathlon_product: scavioDecathlonProduct(config),
     ...config?.enableCrawl ? {
       scavio_map_website: scavioMapWebsite(config),
       scavio_crawl_website: scavioCrawlWebsite(config),
@@ -369,8 +464,15 @@ export {
   scavioBatchStatus,
   scavioCrawlStatus,
   scavioCrawlWebsite,
+  scavioDecathlonProduct,
+  scavioDecathlonSearch,
   scavioExtract,
+  scavioHebProduct,
+  scavioHebSearch,
+  scavioHebStores,
   scavioInstagramSearch,
+  scavioKrogerProduct,
+  scavioKrogerSearch,
   scavioMapWebsite,
   scavioRedditSearch,
   scavioSearch,

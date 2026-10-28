@@ -54,6 +54,8 @@ import {
   scavioCrawlStatus,
   scavioBatchExtract,
   scavioBatchStatus,
+  scavioHebSearch,
+  scavioHebProduct,
 } from "./index.js";
 
 /**
@@ -310,6 +312,12 @@ describe("@scavio/ai-sdk tools", () => {
     expect(out.credits_used).toBe(2);
   });
 
+  it("scavioHebSearch and scavioHebProduct take store_id", () => {
+    const keys = (t: any) => Object.keys(t.inputSchema.shape);
+    expect(keys(scavioHebSearch({ apiKey: "k" }))).toEqual(["query", "page", "page_size", "store_id"]);
+    expect(keys(scavioHebProduct({ apiKey: "k" }))).toEqual(["product_url", "product_id", "slug", "store_id"]);
+  });
+
   it("scavioTools exposes every tool keyed by name", () => {
     const tools = scavioTools({ apiKey: "test" });
     expect(Object.keys(tools)).toEqual([
@@ -326,14 +334,21 @@ describe("@scavio/ai-sdk tools", () => {
       "scavio_walmart_search",
       "scavio_tiktok_search",
       "scavio_instagram_search",
+      "scavio_heb_search",
+      "scavio_heb_product",
+      "scavio_heb_stores",
+      "scavio_kroger_search",
+      "scavio_kroger_product",
+      "scavio_decathlon_search",
+      "scavio_decathlon_product",
     ]);
-    expect(Object.keys(tools)).toHaveLength(13);
+    expect(Object.keys(tools)).toHaveLength(20);
   });
 
   it("scavioTools adds the five website tools only with enableCrawl", () => {
     const tools = scavioTools({ apiKey: "test", enableCrawl: true });
-    expect(Object.keys(tools)).toHaveLength(18);
-    expect(Object.keys(tools).slice(13)).toEqual([
+    expect(Object.keys(tools)).toHaveLength(25);
+    expect(Object.keys(tools).slice(20)).toEqual([
       "scavio_map_website",
       "scavio_crawl_website",
       "scavio_crawl_status",

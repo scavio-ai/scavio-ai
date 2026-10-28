@@ -1,6 +1,6 @@
 {
   "name": "@scavio/ai-sdk",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Scavio search, URL-extraction and website crawl tools for the Vercel AI SDK (extract any URL, map, crawl and batch-extract sites, plus Google, YouTube, Reddit, Amazon, Walmart, HEB, Kroger, TikTok, Instagram).",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -53,12 +53,12 @@
     "zod": ">=3"
   },
   "dependencies": {
-    "scavio": "^0.28.0"
+    "scavio": "^0.28.1"
   },
   "devDependencies": {
     "@ai-sdk/openai": "^3.0.74",
     "ai": "^6.0.208",
-    "scavio": "^0.28.0",
+    "scavio": "^0.28.1",
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0",

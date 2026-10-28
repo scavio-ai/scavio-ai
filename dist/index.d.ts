@@ -85,7 +85,7 @@ declare function scavioRedditSearch(config?: ScavioToolConfig): ai.Tool<{
  * Amazon product search.
  *
  * `domain` was dropped in favour of `country`, a two-letter marketplace code -
- * the upstream provider changed in 2026-07 and no longer takes a domain
+ * the Amazon endpoint changed in 2026-07 and no longer takes a domain
  * suffix. It still works on the wire as a deprecated alias, but a model should
  * only ever see one spelling of a param.
  */
@@ -164,6 +164,48 @@ declare function scavioBatchStatus(config?: ScavioToolConfig): ai.Tool<{
     cursor?: string | undefined;
     limit?: number | undefined;
     include_content?: boolean | undefined;
+}, Record<string, unknown>>;
+/** HEB grocery product search. */
+declare function scavioHebSearch(config?: ScavioToolConfig): ai.Tool<{
+    query: string;
+    page?: number | undefined;
+    page_size?: number | undefined;
+    store_id?: string | undefined;
+}, Record<string, unknown>>;
+/** HEB product detail. */
+declare function scavioHebProduct(config?: ScavioToolConfig): ai.Tool<{
+    store_id?: string | undefined;
+    product_url?: string | undefined;
+    product_id?: string | undefined;
+    slug?: string | undefined;
+}, Record<string, unknown>>;
+/** HEB store locator. */
+declare function scavioHebStores(config?: ScavioToolConfig): ai.Tool<{
+    zip?: string | undefined;
+    city?: string | undefined;
+}, Record<string, unknown>>;
+/** Kroger grocery product search. */
+declare function scavioKrogerSearch(config?: ScavioToolConfig): ai.Tool<{
+    query: string;
+    page?: number | undefined;
+}, Record<string, unknown>>;
+/** Kroger product detail. */
+declare function scavioKrogerProduct(config?: ScavioToolConfig): ai.Tool<{
+    product_url?: string | undefined;
+    slug?: string | undefined;
+    upc?: string | undefined;
+}, Record<string, unknown>>;
+/** Decathlon product search across 7 country domains. */
+declare function scavioDecathlonSearch(config?: ScavioToolConfig): ai.Tool<{
+    query: string;
+    country: "fr" | "es" | "it" | "in" | "uk" | "pt" | "net";
+    page?: number | undefined;
+}, Record<string, unknown>>;
+/** Decathlon product detail. */
+declare function scavioDecathlonProduct(config?: ScavioToolConfig): ai.Tool<{
+    country: "fr" | "es" | "it" | "in" | "uk" | "pt" | "net";
+    product_url?: string | undefined;
+    product_id?: string | undefined;
 }, Record<string, unknown>>;
 /**
  * All Scavio tools as an object keyed by tool name, ready to spread into the
@@ -277,6 +319,41 @@ declare function scavioTools(config?: ScavioToolConfig): {
     scavio_instagram_search: ai.Tool<{
         keyword: string;
     }, Record<string, unknown>>;
+    scavio_heb_search: ai.Tool<{
+        query: string;
+        page?: number | undefined;
+        page_size?: number | undefined;
+        store_id?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_heb_product: ai.Tool<{
+        store_id?: string | undefined;
+        product_url?: string | undefined;
+        product_id?: string | undefined;
+        slug?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_heb_stores: ai.Tool<{
+        zip?: string | undefined;
+        city?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_kroger_search: ai.Tool<{
+        query: string;
+        page?: number | undefined;
+    }, Record<string, unknown>>;
+    scavio_kroger_product: ai.Tool<{
+        product_url?: string | undefined;
+        slug?: string | undefined;
+        upc?: string | undefined;
+    }, Record<string, unknown>>;
+    scavio_decathlon_search: ai.Tool<{
+        query: string;
+        country: "fr" | "es" | "it" | "in" | "uk" | "pt" | "net";
+        page?: number | undefined;
+    }, Record<string, unknown>>;
+    scavio_decathlon_product: ai.Tool<{
+        country: "fr" | "es" | "it" | "in" | "uk" | "pt" | "net";
+        product_url?: string | undefined;
+        product_id?: string | undefined;
+    }, Record<string, unknown>>;
 };
 
-export { type ScavioToolConfig, scavioAmazonOffers, scavioAmazonSearch, scavioBatchExtract, scavioBatchStatus, scavioCrawlStatus, scavioCrawlWebsite, scavioExtract, scavioInstagramSearch, scavioMapWebsite, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeChannel, scavioYoutubeComments, scavioYoutubeSearch, scavioYoutubeTranscript, scavioYoutubeVideo };
+export { type ScavioToolConfig, scavioAmazonOffers, scavioAmazonSearch, scavioBatchExtract, scavioBatchStatus, scavioCrawlStatus, scavioCrawlWebsite, scavioDecathlonProduct, scavioDecathlonSearch, scavioExtract, scavioHebProduct, scavioHebSearch, scavioHebStores, scavioInstagramSearch, scavioKrogerProduct, scavioKrogerSearch, scavioMapWebsite, scavioRedditSearch, scavioSearch, scavioTiktokSearch, scavioTools, scavioWalmartSearch, scavioYoutubeChannel, scavioYoutubeComments, scavioYoutubeSearch, scavioYoutubeTranscript, scavioYoutubeVideo };
